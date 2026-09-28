@@ -1,0 +1,43 @@
+diff --git a/source/loader.c b/source/loader.c
+index 004d198..feb7b37 100644
+--- a/source/loader.c
++++ b/source/loader.c
+@@ -87,7 +87,7 @@ const char *txt4_string(uint16_t id, int n)
+ }
+ 
+ /* ---- CONFIG.DAT ---- */
+-int config_load(pop2_config *c)
++__attribute__((weak)) int config_load(pop2_config *c)
+ {
+ 	memset(c, 0, sizeof *c);
+ 	FILE *f = fopen(game_path("CONFIG.DAT"), "rb"); if (!f) return 0;
+@@ -104,17 +104,17 @@ static const char *file_path(const char *name)
+ 	if (!file_dir[0]) return game_path(name);
+ 	snprintf(p, sizeof p, "%s/%s", file_dir, name); return p;
+ }
+-long file_size(const char *name)
++__attribute__((weak)) long file_size(const char *name)
+ {
+ 	FILE *f = fopen(file_path(name), "rb"); if (!f) return -1;
+ 	fseek(f, 0, SEEK_END); long n = ftell(f); fclose(f); return n;
+ }
+-long file_read(const char *name, long off, void *buf, long n)
++__attribute__((weak)) long file_read(const char *name, long off, void *buf, long n)
+ {
+ 	FILE *f = fopen(file_path(name), "rb"); if (!f) return -1;
+ 	long r = fseek(f, off, SEEK_SET) == 0 ? (long)fread(buf, 1, n, f) : 0; fclose(f); return r;
+ }
+-int file_write_at(const char *name, long off, const void *buf, long n, int create)
++__attribute__((weak)) int file_write_at(const char *name, long off, const void *buf, long n, int create)
+ {
+ 	FILE *f = fopen(file_path(name), "r+b");
+ 	if (!f && create) f = fopen(file_path(name), "w+b");
+@@ -124,7 +124,7 @@ int file_write_at(const char *name, long off, const void *buf, long n, int creat
+ 	int ok = fseek(f, off, SEEK_SET) == 0 && (long)fwrite(buf, 1, n, f) == n;
+ 	fclose(f); return ok;
+ }
+-int file_create(const char *name, const void *buf, long n)
++__attribute__((weak)) int file_create(const char *name, const void *buf, long n)
+ {
+ 	FILE *f = fopen(file_path(name), "wb"); if (!f) return 0;
+ 	int ok = (long)fwrite(buf, 1, n, f) == n; fclose(f); return ok;

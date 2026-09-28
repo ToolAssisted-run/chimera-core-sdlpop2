@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Default bindings for Prince of Persia 2: the keyboard as the DOS game has it (the arrows, Shift to grab and step carefully,",
+    "Ctrl for the sword and the spirit's spell; Enter, Space, Esc, Tab, Backspace and the letters for the menus, the scenes and",
+    "the hall of fame, Alt for the game's Alt keys), and the first pad: the d-pad and left stick as the arrows, A as Shift,",
+    "B as Ctrl, Start as Enter, Back as Esc."
+  ],
+  "AllTrollers": {
+    "Prince of Persia 2": {
+      "P1 Up": "Up, J1 POV1U, X1 DpadUp, X1 LStickUp",
+      "P1 Down": "Down, J1 POV1D, X1 DpadDown, X1 LStickDown",
+      "P1 Left": "Left, J1 POV1L, X1 DpadLeft, X1 LStickLeft",
+      "P1 Right": "Right, J1 POV1R, X1 DpadRight, X1 LStickRight",
+      "P1 Shift": "Shift, LeftShift, RightShift, J1 B1, X1 A",
+      "P1 Ctrl": "Ctrl, LeftCtrl, RightCtrl, J1 B2, X1 B",
+      "Key Return": "Enter, J1 B10, X1 Start",
+      "Key Space": "Space",
+      "Key Escape": "Escape, J1 B9, X1 Back",
+      "Key Tab": "Tab",
+      "Key Backspace": "Backspace",
+      "Key Alt": "Alt, LeftAlt, RightAlt",
+      "Key A": "A", "Key B": "B", "Key C": "C", "Key D": "D", "Key E": "E", "Key F": "F", "Key G": "G",
+      "Key H": "H", "Key I": "I", "Key J": "J", "Key K": "K", "Key L": "L", "Key M": "M", "Key N": "N",
+      "Key O": "O", "Key P": "P", "Key Q": "Q", "Key R": "R", "Key S": "S", "Key T": "T", "Key U": "U",
+      "Key V": "V", "Key W": "W", "Key X": "X", "Key Y": "Y", "Key Z": "Z"
+    }
+  }
+}

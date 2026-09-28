@@ -1,0 +1,3 @@
+[submodule "extern/SDLPoP2"]
+	path = extern/SDLPoP2
+	url = https://github.com/ToolAssisted-run/SDLPoP2.git

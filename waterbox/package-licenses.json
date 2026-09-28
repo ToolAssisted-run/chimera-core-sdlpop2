@@ -1,0 +1,30 @@
+{
+  "package": "sdlpop2",
+  "effectiveTerms": "GPL-3.0-or-later",
+  "commercialUse": "allowed under the GPL",
+  "note": "The built core combines this repository's integration (GPL-3.0-or-later, as SDLPoP2) with SDLPoP2's reconstruction of Prince of Persia 2, compiled in from its upstream source, which bundles Nuked OPL3 (LGPL-2.1-or-later). The package carries none of Prince of Persia 2's data: the game's original files are the project's firmware, supplied by the user.",
+  "components": [
+    {
+      "name": "chimera-core-sdlpop2 (integration)",
+      "license": "GPL-3.0-or-later",
+      "url": "https://github.com/ToolAssisted-run/chimera-core-sdlpop2",
+      "commit": "{selfCommit}",
+      "file": "LICENSE",
+      "sourceUrl": "https://github.com/ToolAssisted-run/chimera-core-sdlpop2/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "SDLPoP2",
+      "license": "GPL-3.0-or-later",
+      "url": "https://github.com/ToolAssisted-run/SDLPoP2",
+      "commit": "{submodule:extern/SDLPoP2}",
+      "file": "extern/SDLPoP2/LICENSE",
+      "sourceUrl": "https://github.com/ToolAssisted-run/SDLPoP2/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "Nuked OPL3 (bundled by SDLPoP2, source/audio_opl3.c)",
+      "license": "LGPL-2.1-or-later",
+      "url": "https://github.com/nukeykt/Nuked-OPL3",
+      "file": "extern/SDLPoP2/source/audio_opl3.h"
+    }
+  ]
+}

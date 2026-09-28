@@ -1,0 +1,15 @@
+{
+  "_comment": "A Prince of Persia 2 project needs no file of its own: the game is the original files, which the project brings as firmware (the core's firmware list). A saved game is the one file a project may add.",
+  "slots": [
+    {
+      "id": "savegame",
+      "title": "Saved game",
+      "min": 0,
+      "max": 1,
+      "formats": [
+        "sav"
+      ],
+      "help": "A PRINCE.SAV the game saved (Alt+G), for a run that starts from a saved game: the game finds it as its own, and Alt+L on the title or in a level restores it. Leave it empty to start from the title."
+    }
+  ]
+}

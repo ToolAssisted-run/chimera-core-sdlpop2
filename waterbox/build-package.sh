@@ -49,7 +49,7 @@ cp "$here/default_keybinds.json" "$staging/default_keybinds.json"
 # The core-declared file form for the project wizard - the frontend renders it,
 # this file decides it.
 cp "$here/file_slots.json" "$staging/file_slots.json"
-# the terms travel with the binary: SDLPoP2 (GPL-3.0) and Nuked OPL3 (LGPL-2.1) are
+# the terms travel with the binary: SDLPoP2 (GPL-3.0), Nuked OPL3 and Munt (LGPL-2.1) are
 # somebody else's work (see waterbox/package-licenses.json)
 python3 "$mb/source/guest/package-licenses.py" "$root" "$staging"
 

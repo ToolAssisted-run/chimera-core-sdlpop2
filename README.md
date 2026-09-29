@@ -51,7 +51,7 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
 - **The hall of fame's name** is the Player Name (Hall of Fame) setting
   ("Chimera" by default): a won game's name is typed into the game's own
   editor by itself.
-- **Properties**: 343 in `GetGameProperties`. The level number, the next
+- **Properties**: 345 in `GetGameProperties`. The level number, the next
   level (a poke of 15 on level 14 wins the game), the time left, the random
   seed and the tick in a packed `Game State` block, copied out after each step
   and back before the next (so pokes and freezes work); the prince's record,
@@ -59,6 +59,12 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
   and the characters it starts with), the moving floors and the tile
   animations in place, as further domains, described as arrays; and the hall
   of fame as the game last wrote it.
+- **The game's timer**: `IGT Ticks` and `IGT Ms` in `Game State`, the ticks of
+  1/12 s the clock has lost since the game set it (the minutes it starts with,
+  the ticks a minute), times 1000/12. The game's clock starts only with the
+  first story scene after level 4, so the time reads 0 until then. The table
+  names it (`"gameTimer"`), so Chimera shows it as `IGT mm:ss.mmm` and saves it
+  in the project at the end of the movie.
 - **Settings** that change play, recorded in the project: the random seed, the
   cheats, the player name, the intro and the story scenes, skipping the title, and
   SDLPoP2's gameplay settings (the minutes, the hit points, the first level,

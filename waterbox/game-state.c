@@ -16,6 +16,7 @@
 #include "pop2-driver.h"
 
 #include "globals.h"
+#include "settings.h"
 #include "types.h"
 
 extern uint16_t minutes_left, clock_ticks, frame_delay;   /* game.c */
@@ -37,6 +38,8 @@ typedef struct
 	uint16_t mob_count;     /* +16 */
 	uint16_t trob_count;    /* +18 */
 	uint16_t next_level;    /* +20 the level the game goes to (the level ends when it is not this one) */
+	uint32_t igt_ticks;     /* +22 the in-game time, in ticks of the game's clock */
+	uint32_t igt_ms;        /* +26 the same in milliseconds, 12 ticks a second */
 } game_state;
 #pragma pack(pop)
 
@@ -57,6 +60,17 @@ void gamestate_from_game(void)
 	g_state.mob_count = mob_count;
 	g_state.trob_count = trob_count;
 	g_state.next_level = counter_5cec;
+	/* The in-game time: what the game's clock has counted down from the time a
+	 * game starts with. game_clock() takes a tick off each tick it runs and,
+	 * at 0, puts a minute's ticks back and takes a minute: so the count is
+	 * minutes x ticks-per-minute + ticks. */
+	{
+		const int64_t tpm = GAME_SETTING(ticks_per_minute, 0x2CF);
+		const int64_t start = (int64_t)GAME_SETTING(start_minutes_left, 75) * tpm + tpm;
+		const int64_t ticks = start - ((int64_t)minutes_left * tpm + clock_ticks);
+		g_state.igt_ticks = ticks > 0 ? (uint32_t)ticks : 0;
+		g_state.igt_ms = (uint32_t)((uint64_t)g_state.igt_ticks * 1000 / 12);
+	}
 	/* the hall of fame, as the game last wrote it */
 	memset(g_hof, 0, sizeof g_hof);
 	pop2drv_hof(g_hof, (long)sizeof g_hof);
@@ -184,7 +198,8 @@ static void table_init(void)
 {
 	if (g_len) return;
 	char name[96];
-	add("{ \"properties\": [");
+	/* the game's own timer, for the frontend (docs/game-cores.md) */
+	add("{ \"gameTimer\": \"IGT Ms\", \"properties\": [");
 
 	/* the Game State block */
 	prop("Level", "Game State", 0, "u8", "Game", "\"writable\": false, \"description\": \"The level being played\"");
@@ -196,6 +211,8 @@ static void table_init(void)
 	prop("Frame Delay", "Game State", 14, "u16", "Game", "\"description\": \"1/60 s between this tick and the next (5 walking, 6 fighting)\"");
 	prop("Mob Count", "Game State", 16, "u16", "Game", "\"writable\": false");
 	prop("Trob Count", "Game State", 18, "u16", "Game", "\"writable\": false");
+	prop("IGT Ticks", "Game State", 22, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time: the ticks the game's clock has counted down since the game started (the clock runs from the first story scene after level 3)\"");
+	prop("IGT Ms", "Game State", 26, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time in milliseconds, 12 ticks a second: IGT mm:ss.mmm\"");
 	prop("Next Level", "Game State", 20, "u16", "Game", "\"description\": \"The level the game goes to: the level ends when this is not the level being played (15 after level 14: the game is won)\"");
 
 	/* the prince, and the room's five character slots */

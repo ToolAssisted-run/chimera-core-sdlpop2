@@ -444,6 +444,23 @@ else
 	report "keys:shared" FAIL "$(pos 46) -> $(pos 85)"
 fi
 
+# ------------------------------------------------------------------ 6e. the in-game time
+# IGT Ticks counts what the game's clock counts down, and IGT Ms is that at 12
+# ticks a second (the table's gameTimer). The clock only runs from the first
+# story scene after level 4: level 4 (its copy protection answered), Next
+# Level with the cheats, the scene skipped - nothing counted until level 5,
+# then exactly one tick a step, through the minute's rollover (75 -> 74)
+wd="$(workdir igt '{"skip_title":true,"first_level":4,"cheats":true}')"
+boxed "$wd" --frames 1300 --press 99:R:1 --press 103:R:1 --press 150:S:1 --press 420:n:1 --press 450:_:1 --press 470:_:1 --press 490:_:1 \
+	--trace "$work/igt.trace" --trace-props "Level,Minutes Left,Ticks Left,IGT Ticks,IGT Ms" > /dev/null 2>&1
+igt="$(awk '$1 ~ /^[0-9]+$/ && $1 >= 519 && $7 - p != 1 { odd++ } $1 ~ /^[0-9]+$/ && $8 != int($7 * 1000 / 12) { bad++ } { p = $7 } END { print odd + 0, bad + 0 }' "$work/igt.trace")"
+if [ "$igt" = "0 0" ] && [ "$(at "$work/igt.trace" 517 4)" = "0" ] && [ "$(at "$work/igt.trace" 600 1)" = "5" ] &&
+   [ "$(at "$work/igt.trace" 1299 2)" = "74" ] && [ "$(at "$work/igt.trace" 1299 4)" = "782" ] && [ "$(at "$work/igt.trace" 1299 5)" = "65166" ]; then
+	report "time:igt" PASS "nothing counted before level 5; then one tick a step through the minute's rollover: 782 = 01:05.166 at step 1299"
+else
+	report "time:igt" FAIL "off-by-a-tick steps and ms mismatches: $igt; IGT $(at "$work/igt.trace" 517 4) at 517, level $(at "$work/igt.trace" 600 1), minutes $(at "$work/igt.trace" 1299 2), IGT $(at "$work/igt.trace" 1299 4) $(at "$work/igt.trace" 1299 5)"
+fi
+
 # ------------------------------------------------------------------ 7. the package
 if sh "$here/build-package.sh" -m "$mb" -o "$work/pkg1" > "$work/pkg1.log" 2>&1 &&
    sh "$here/build-package.sh" -m "$mb" -o "$work/pkg2" > "$work/pkg2.log" 2>&1 &&

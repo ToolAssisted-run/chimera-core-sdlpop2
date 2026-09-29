@@ -82,8 +82,8 @@ and Munt's libmt32emu for the Roland MT-32.
 - **The machine is the original setup's**: the Sound Blaster Pro's digitized
   sounds and FM music, and CONFIG.DAT as the DOS setup writes it for them -
   the core's own, since each player's file says what their machine had.
-- **The Roland MT-32**, with the Music Device setting (`fm`, the default, or
-  `roland`): the setup's "Roland MT-32/LAPC-1/CM-32L" on an MPU-401, whose
+- **The Roland MT-32**, the Music Device setting's default (`roland`; `fm` is
+  the Sound Blaster Pro's FM chip, as the original setup chose): the setup's "Roland MT-32/LAPC-1/CM-32L" on an MPU-401, whose
   driver SDLPoP2 rebuilds (MMPU401.DRV). Every byte it sends goes to Munt's
   libmt32emu at its time in the sound's samples, and the MT-32's stereo is
   mixed with the card's digitized sounds (the same on both sides). As in the
@@ -92,7 +92,8 @@ and Munt's libmt32emu for the Roland MT-32.
   later than on the FM chip, so a movie plays on the device it was made with.
   The project brings PRESET40.DEF (SNDDRVRS on the CD) and an MT-32's two ROMs
   (v1.07, the DOSBox-X core's firmware ids and hashes) as firmware when the
-  music is the MT-32's. What the game does is the FM setup's either way, the
+  music is the MT-32's - so a new project asks for them unless its music is
+  set to `fm`. What the game does is the FM setup's either way, the
   story scenes' timing included. General MIDI, which SDLPoP2 also rebuilds, is
   left out: Munt cannot play it.
 - **Files the game writes** (the hall of fame, the options) live in guest

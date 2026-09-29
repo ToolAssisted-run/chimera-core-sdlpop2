@@ -422,11 +422,11 @@ int pop2drv_init(char *err, int errsize)
 {
 	memset(&g, 0, sizeof g);
 	memset(g_files, 0, sizeof g_files);
-	/* the music: the Sound Blaster Pro's FM chip, as the original setup, or a
-	 * Roland MT-32 on an MPU-401 */
 	g.midi_hash = 0xCBF29CE484222325ull;
+	/* the music: a Roland MT-32 on an MPU-401 (the default, user-decided
+	 * 2026-09-29), or the Sound Blaster Pro's FM chip, as the original setup */
 	char music[16];
-	if (wbx_setting_str("music", music, sizeof music) < 0) strcpy(music, "fm");
+	if (wbx_setting_str("music", music, sizeof music) < 0) strcpy(music, "roland");
 	if (!strcmp(music, "roland")) g.roland = 1;
 	else if (strcmp(music, "fm"))
 	{

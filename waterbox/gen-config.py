@@ -142,9 +142,9 @@ def main():
                 "name": "music",
                 "display": "Music Device",
                 "type": "enum",
-                "options": ["fm", "roland"],
-                "default": "fm",
-                "description": "What plays the music: the Sound Blaster Pro's FM chip (fm), as the original setup chose, or a Roland MT-32 on an MPU-401 (roland), the setup's \"Roland MT-32/LAPC-1/CM-32L\". The digitized sounds are the Sound Blaster's either way. The MT-32 needs the setup's PRESET40.DEF and an MT-32's two ROMs (v1.07), which the project brings as firmware; its game starts 9.35 s later, as the original did, while the start-up sends the MT-32 its timbres - so a movie plays on the music device it was made with.",
+                "options": ["roland", "fm"],
+                "default": "roland",
+                "description": "What plays the music: a Roland MT-32 on an MPU-401 (roland, the default), the setup's \"Roland MT-32/LAPC-1/CM-32L\", or the Sound Blaster Pro's FM chip (fm), as the original setup chose. The digitized sounds are the Sound Blaster's either way. The MT-32 needs the setup's PRESET40.DEF and an MT-32's two ROMs (v1.07), which the project brings as firmware; its game starts 9.35 s later, as the original did, while the start-up sends the MT-32 its timbres - so a movie plays on the music device it was made with.",
             },
             {
                 "name": "random_seed",

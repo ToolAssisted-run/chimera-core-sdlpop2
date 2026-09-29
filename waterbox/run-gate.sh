@@ -119,11 +119,16 @@ else
 fi
 
 # a work dir: the game files the project would mount, and a settings file
+# The gate's runs are the FM chip's unless they name the music: the MT-32, the
+# default, waits 655 frames at start-up and its sound is not held to the native
+# reference - its own legs say roland, and mt32:default what a project that
+# names no music gets.
 workdir() {
-	local wd="$work/$1"
+	local wd="$work/$1" s="$2"
 	mkdir -p "$wd"
 	for f in "$data"/*.DAT "$data"/*.EXE "$data"/*.DEF; do [ -f "$f" ] && cp "$f" "$wd/"; done
-	printf '%s' "$2" > "$wd/settings"
+	case "$s" in *'"music"'*) ;; '{}') s='{"music":"fm"}' ;; *) s="{\"music\":\"fm\",${s#\{}" ;; esac
+	printf '%s' "$s" > "$wd/settings"
 	echo "$wd"
 }
 
@@ -396,6 +401,21 @@ EOF
 		report "mt32:heard" PASS "$(cat "$work/mt32.txt")"
 	else
 		report "mt32:heard" FAIL "$(tail -1 "$work/mt32.txt")"
+	fi
+	# the MT-32 is the default: a project that names no music plays it (the same
+	# bytes as the roland run's), and without its files is refused for them
+	wd="$work/mt-default"; mkdir -p "$wd"
+	for f in "$data"/*.DAT "$data"/*.EXE "$data"/*.DEF "$data"/roland/*; do cp "$f" "$wd/"; done
+	printf '{}' > "$wd/settings"
+	dflt="$(boxed "$wd" --frames 700 2>/dev/null | grep -E '^midi')"
+	named="$(boxed "$work/roland" --frames 700 2>/dev/null | grep -E '^midi')"
+	rm "$wd/PRESET40.DEF"
+	boxed "$wd" --frames 1 > "$work/mt0.txt" 2>/dev/null
+	if [ -n "$dflt" ] && [ "$dflt" = "$named" ] && [ "$(echo "$dflt" | sed -n 's/^midiBytes=//p')" -gt 19934 ] &&
+	   grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt0.txt"; then
+		report "mt32:default" PASS "no music setting: the MT-32 ($(echo "$dflt" | sed -n 's/^midiBytes=//p') bytes by step 700, as music roland), and its files asked for"
+	else
+		report "mt32:default" FAIL "default [$(echo $dflt)] roland [$(echo $named)]; $(grep -m1 . "$work/mt0.txt")"
 	fi
 	# the MT-32's files are asked for only with it, and each is named or refused
 	wd="$(workdir mt-missing '{"music":"roland"}')"; cp "$data"/roland/MT32_*.ROM "$wd/"

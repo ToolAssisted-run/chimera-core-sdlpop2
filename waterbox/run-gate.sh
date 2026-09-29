@@ -13,7 +13,8 @@
 #   - take its settings (a first level, the minutes, the hit points arrive)
 #   - play the music on a Roland MT-32 when asked: the MIDI bytes the same
 #     natively and sandboxed, the start-up waiting for the timbres as the
-#     original did, the MT-32 heard in stereo
+#     original did, the MT-32 heard in stereo; or all the sound on the PC
+#     speaker, the game the same
 #   - refuse a missing game file, the floppy release's PRINCE.EXE and a
 #     damaged file
 #   - ask for its coroutines' stacks as stacks (MAP_STACK)
@@ -188,6 +189,7 @@ tests=(
 	"commands|500|{\"skip_title\":true,\"first_level\":2}"
 	"cheats|400|{\"skip_title\":true,\"first_level\":2,\"cheats\":true}"
 	"roland|1400|{\"music\":\"roland\"}"
+	"speaker|700|{\"music\":\"speaker\"}"
 )
 # the command keys, each once, on level 2 (where the prince is safe): the
 # messages, the pause (Show Time ends it), Restart Level after a run (the
@@ -209,6 +211,8 @@ test_args() {
 			--screenshot "9:$work/fm-9.tga") ;;
 		# the same title on the MT-32: 655 frames later
 		roland) args=(--screenshot "663:$work/mt-663.tga" --screenshot "664:$work/mt-664.tga" --screenshot "955:$work/mt-955.tga") ;;
+		# the title on the PC speaker
+		speaker) args=(--screenshot "300:$work/sp-300.tga") ;;
 		# level 1 from its first tick: run right off the roof, die, a key
 		# restarts it
 		play) args=(--movie "$here/tests/play-movie.txt" --screenshot "30:$work/level1.tga") ;;
@@ -427,11 +431,39 @@ EOF
 	boxed "$wd" --frames 1 > "$work/mt3.txt" 2>/dev/null
 	if grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt1.txt" &&
 	   grep -q "^loadError=MT32_CONTROL.ROM is not the Roland MT-32's control ROM, v1.07: 65536 bytes, SHA-1 " "$work/mt2.txt" &&
-	   grep -qx "loadError=the music setting is mt32; it is fm or roland" "$work/mt3.txt"; then
+	   grep -qx "loadError=the music setting is mt32; it is roland, fm or speaker" "$work/mt3.txt"; then
 		report "mt32:refusals" PASS "no PRESET40.DEF: named; a damaged control ROM: refused with both hashes; an unknown music setting: refused"
 	else
 		report "mt32:refusals" FAIL "$(grep -h loadError "$work"/mt[123].txt | tr '\n' ' ' | head -c 200)"
 	fi
+fi
+
+# ------------------------------------------------------------------ 6a'. the PC speaker
+# the speaker plays the title: its own sound (not the card's), mono, heard in
+# every second of it; the game is the card's - the same pictures, step for
+# step, and no MIDI
+if python3 - "$wbx" "$work/speaker" "$nat/run-wbx" > "$work/speaker-heard.txt" 2>&1 <<'EOF'
+import struct, subprocess, sys
+wbx, wd, run = sys.argv[1:]
+subprocess.run([run, wbx, wd, "--frames", "700", "--audio", wd + "/a.raw"], capture_output=True, check=True)
+d = open(wd + "/a.raw", "rb").read()
+s = struct.unpack("<%dh" % (len(d) // 2), d)
+left, right = s[0::2], s[1::2]
+assert left == right, "left and right apart"
+peaks = [max(abs(x) for x in left[i:i + 44100]) for i in range(0, len(left) - 44100 + 1, 44100)]
+assert min(peaks) > 3000, peaks
+print(f"the title's {len(peaks)} seconds each heard (peaks {min(peaks)}..{max(peaks)}), mono")
+EOF
+then
+	h() { sed -n "s/^$2=//p" "$work/$1.box.txt"; }
+	if [ "$(h speaker videoHash)" = "$(h title videoHash)" ] && [ "$(h speaker stepsHash)" = "$(h title stepsHash)" ] &&
+	   [ "$(h speaker audioHash)" != "$(h title audioHash)" ] && [ "$(h speaker midiBytes)" = "0" ] && [ "$(pixels sp-300)" = "1ae6ee2c6568dea1" ]; then
+		report "speaker:heard" PASS "$(cat "$work/speaker-heard.txt"); not the card's sound; the same 700 pictures and steps as the card's"
+	else
+		report "speaker:heard" FAIL "video $(h speaker videoHash)/$(h title videoHash) steps $(h speaker stepsHash)/$(h title stepsHash) audio $(h speaker audioHash)/$(h title audioHash) midi $(h speaker midiBytes)"
+	fi
+else
+	report "speaker:heard" FAIL "$(tail -1 "$work/speaker-heard.txt")"
 fi
 
 # ------------------------------------------------------------------ 6b. the keys

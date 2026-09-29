@@ -13,9 +13,10 @@
  * Nothing here reads the host: the random seed is a setting, the sound is
  * rendered for exactly the time each frame covers, CONFIG.DAT is the original
  * setup's and the files the game writes (saved games, the hall of fame, the
- * options) live in guest memory, so a savestate carries them. The music is the
- * Sound Blaster Pro's FM chip, or a Roland MT-32 (Munt's libmt32emu, in guest
- * memory too) fed the bytes SDLPoP2's MPU-401 driver sends it.
+ * options) live in guest memory, so a savestate carries them. The music is a
+ * Roland MT-32 (Munt's libmt32emu, in guest memory too) fed the bytes SDLPoP2's
+ * MPU-401 driver sends it, or the Sound Blaster Pro's FM chip; or all the sound
+ * is the PC speaker's.
  */
 #include <stdarg.h>
 #include <stdio.h>
@@ -120,6 +121,7 @@ static struct
 	int tick;                      /* a game tick began in this frame */
 	int exited;                    /* the program has quit (Ctrl+Q, the copy protection) */
 	int roland;                    /* the music is the MT-32's */
+	int speaker;                   /* all the sound is the PC speaker's */
 	uint64_t midi_bytes, midi_hash; /* what the MT-32 was sent, with its times (the gate's) */
 	int audio_n;                   /* stereo frames in audio */
 	int16_t audio[2 * POP2_AUDIO_MAX_SAMPLES];
@@ -423,14 +425,18 @@ int pop2drv_init(char *err, int errsize)
 	memset(&g, 0, sizeof g);
 	memset(g_files, 0, sizeof g_files);
 	g.midi_hash = 0xCBF29CE484222325ull;
-	/* the music: a Roland MT-32 on an MPU-401 (the default, user-decided
-	 * 2026-09-29), or the Sound Blaster Pro's FM chip, as the original setup */
+	/* the sound device (the setting is named music, as it was first): a
+	 * Roland MT-32 on an MPU-401 for the music (the default, user-decided
+	 * 2026-09-29) or the Sound Blaster Pro's FM chip, as the original setup,
+	 * each with the card's digitized sounds; or no card at all, the PC
+	 * speaker's own player (IBMSND.DAT, NISIBM.DAT) */
 	char music[16];
 	if (wbx_setting_str("music", music, sizeof music) < 0) strcpy(music, "roland");
 	if (!strcmp(music, "roland")) g.roland = 1;
+	else if (!strcmp(music, "speaker")) g.speaker = 1;
 	else if (strcmp(music, "fm"))
 	{
-		snprintf(err, (size_t)errsize, "the music setting is %s; it is fm or roland", music);
+		snprintf(err, (size_t)errsize, "the music setting is %s; it is roland, fm or speaker", music);
 		return 0;
 	}
 	if (!check_files(k_files, POP2_FILE_COUNT, err, errsize)) return 0;
@@ -459,10 +465,14 @@ int pop2drv_init(char *err, int errsize)
 	/* the original setup's sound: the digitized sounds and the FM music, as the
 	 * DOS program played them on a Sound Blaster Pro - or the music on an
 	 * MT-32, whose timbres the start-up sends it first and waits for (9.35 s),
-	 * as the original did (shell_sound_setup_hook) */
+	 * as the original did (shell_sound_setup_hook) - or the PC speaker alone.
+	 * What the game does is the Sound Blaster setup's whichever plays it: its
+	 * sound_caps stays 3 (with the speaker, Alt+M still toggles the music the
+	 * speaker does not play) */
 	if (g.roland && !mt32_open(err, errsize)) return 0;
 	audio_midi_out = g.roland ? on_midi : NULL;
-	if (!audio_init_midi(".", SOUND_DEVICE_FM_DIGITAL, g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM, g.roland ? "PRESET40.DEF" : NULL))
+	if (!audio_init_midi(".", g.speaker ? SOUND_DEVICE_SPEAKER : SOUND_DEVICE_FM_DIGITAL, g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM,
+		g.roland ? "PRESET40.DEF" : NULL))
 	{
 		snprintf(err, (size_t)errsize, "SDLPoP2 could not load the sound files.");
 		return 0;

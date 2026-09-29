@@ -73,7 +73,7 @@ and Munt's libmt32emu for the Roland MT-32.
   level 1. It changes nothing in the game. The table names the timer
   (`"gameTimer"`), so Chimera shows it as `IGT mm:ss.mmm` and saves it in the
   project at the end of the movie.
-- **Settings** that change play, recorded in the project: the music device,
+- **Settings** that change play, recorded in the project: the sound device,
   the random seed, the cheats, the player name, where the in-game time starts,
   the intro and the story scenes, skipping the title, and
   SDLPoP2's gameplay settings (the minutes, the hit points, the first level,
@@ -82,8 +82,9 @@ and Munt's libmt32emu for the Roland MT-32.
 - **The machine is the original setup's**: the Sound Blaster Pro's digitized
   sounds and FM music, and CONFIG.DAT as the DOS setup writes it for them -
   the core's own, since each player's file says what their machine had.
-- **The Roland MT-32**, the Music Device setting's default (`roland`; `fm` is
-  the Sound Blaster Pro's FM chip, as the original setup chose): the setup's "Roland MT-32/LAPC-1/CM-32L" on an MPU-401, whose
+- **The Roland MT-32**, the Sound Device setting's default (`roland`; `fm` is
+  the Sound Blaster Pro's FM chip, as the original setup chose; `speaker`
+  below; the setting's key is `music`): the setup's "Roland MT-32/LAPC-1/CM-32L" on an MPU-401, whose
   driver SDLPoP2 rebuilds (MMPU401.DRV). Every byte it sends goes to Munt's
   libmt32emu at its time in the sound's samples, and the MT-32's stereo is
   mixed with the card's digitized sounds (the same on both sides). As in the
@@ -96,6 +97,12 @@ and Munt's libmt32emu for the Roland MT-32.
   set to `fm`. What the game does is the FM setup's either way, the
   story scenes' timing included. General MIDI, which SDLPoP2 also rebuilds, is
   left out: Munt cannot play it.
+- **The PC speaker**, the Sound Device setting's `speaker`: no card at all, the
+  game's own speaker player with its sounds (IBMSND.DAT, and NISIBM.DAT for
+  the story scenes), as SDLPoP2 rebuilds it. What the game does is still the
+  Sound Blaster setup's - its sound capabilities stay the card's, so Music
+  On/Off still toggles the music the speaker does not play, where the
+  original with no card answered "Music Unavailable".
 - **Files the game writes** (the hall of fame, the options) live in guest
   memory, so a savestate carries them. A project needs no file of its own: its
   file slot list is empty.

@@ -340,6 +340,9 @@ int pop2drv_init(char *err, int errsize)
 	 * original did: it also lets Alt+N skip past level 3 and the debug keys */
 	static const char *words[] = { "yippeeyahoo" };
 	const int cheats = g.cheats = wbx_setting_bool("cheats", 0) != 0;
+	/* the in-game time from the start of level 1, the ticks before the game's
+	 * clock started included (game-state.c); nothing in play changes */
+	gamestate_igt_from_level_1(wbx_setting_bool("igt_from_level_1", 1) != 0);
 	const uint32_t seed = (uint32_t)(wbx_setting_long("random_seed", 0) & 0xFFFFFFFFl);
 
 	/* the original setup's sound: the digitized sounds and the FM music, as the

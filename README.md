@@ -8,10 +8,12 @@ Prince of Persia 2: The Shadow and the Flame (DOS), as a
 of fame - stepped one game step at a time in miniBox's sandbox, packaged as
 `sdlpop2.chimeraCore`.
 
-**Built on upstream SDLPoP2, with two patches**: the first makes the five
+**Built on upstream SDLPoP2, with three patches**: the first makes the five
 routines that read CONFIG.DAT and the game's own save files weak, so the core
 can answer them; the second adds two weak hooks, for the hall of fame's name
-and for the action button choosing the copy protection's symbol. Everything else is SDLPoP2's library compiled from source, with the
+and for the action button choosing the copy protection's symbol; the third
+two more, so the core can count the time of play before the game's clock
+starts. Everything else is SDLPoP2's library compiled from source, with the
 core's own coroutines (musl has no ucontext) and its SDL frontend left out.
 
 ## What it is
@@ -51,7 +53,7 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
 - **The hall of fame's name** is the Player Name (Hall of Fame) setting
   ("Chimera" by default): a won game's name is typed into the game's own
   editor by itself.
-- **Properties**: 345 in `GetGameProperties`. The level number, the next
+- **Properties**: 346 in `GetGameProperties`. The level number, the next
   level (a poke of 15 on level 14 wins the game), the time left, the random
   seed and the tick in a packed `Game State` block, copied out after each step
   and back before the next (so pokes and freezes work); the prince's record,
@@ -62,11 +64,16 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
 - **The game's timer**: `IGT Ticks` and `IGT Ms` in `Game State`, the ticks of
   1/12 s the clock has lost since the game set it (the minutes it starts with,
   the ticks a minute), times 1000/12. The game's clock starts only with the
-  first story scene after level 4, so the time reads 0 until then. The table
-  names it (`"gameTimer"`), so Chimera shows it as `IGT mm:ss.mmm` and saves it
-  in the project at the end of the movie.
+  first story scene after level 4, so on its own it counts nothing in levels 1
+  to 4. The **IGT From Level 1** setting (on) adds the ticks of play before
+  then (`IGT Before Clock`), counted as the clock counts them - while the
+  prince lives, not in the story scenes, never in the title's demos, and from
+  0 again when a new game starts - so the time runs from the very beginning of
+  level 1. It changes nothing in the game. The table names the timer
+  (`"gameTimer"`), so Chimera shows it as `IGT mm:ss.mmm` and saves it in the
+  project at the end of the movie.
 - **Settings** that change play, recorded in the project: the random seed, the
-  cheats, the player name, the intro and the story scenes, skipping the title, and
+  cheats, the player name, where the in-game time starts, the intro and the story scenes, skipping the title, and
   SDLPoP2's gameplay settings (the minutes, the hit points, the first level,
   the speeds). Defaults are the original game; with every one at its default
   the game runs on SDLPoP2's verified path, with no overrides installed.

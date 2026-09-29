@@ -104,6 +104,7 @@ int pop2drv_domain_writable(int i);
 const char *pop2drv_game_properties(void);
 void gamestate_from_game(void);
 void gamestate_to_game(void);
+void gamestate_igt_from_level_1(int on);   /* the igt_from_level_1 setting */
 
 #ifdef __cplusplus
 }

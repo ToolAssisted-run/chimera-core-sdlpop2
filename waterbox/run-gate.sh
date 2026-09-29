@@ -448,9 +448,10 @@ fi
 # IGT Ticks counts what the game's clock counts down, and IGT Ms is that at 12
 # ticks a second (the table's gameTimer). The clock only runs from the first
 # story scene after level 4: level 4 (its copy protection answered), Next
-# Level with the cheats, the scene skipped - nothing counted until level 5,
-# then exactly one tick a step, through the minute's rollover (75 -> 74)
-wd="$(workdir igt '{"skip_title":true,"first_level":4,"cheats":true}')"
+# Level with the cheats, the scene skipped - with IGT From Level 1 off, the
+# game's clock alone: nothing counted until level 5, then exactly one tick a
+# step, through the minute's rollover (75 -> 74)
+wd="$(workdir igt '{"skip_title":true,"first_level":4,"cheats":true,"igt_from_level_1":false}')"
 boxed "$wd" --frames 1300 --press 99:R:1 --press 103:R:1 --press 150:S:1 --press 420:n:1 --press 450:_:1 --press 470:_:1 --press 490:_:1 \
 	--trace "$work/igt.trace" --trace-props "Level,Minutes Left,Ticks Left,IGT Ticks,IGT Ms" > /dev/null 2>&1
 igt="$(awk '$1 ~ /^[0-9]+$/ && $1 >= 519 && $7 - p != 1 { odd++ } $1 ~ /^[0-9]+$/ && $8 != int($7 * 1000 / 12) { bad++ } { p = $7 } END { print odd + 0, bad + 0 }' "$work/igt.trace")"
@@ -459,6 +460,47 @@ if [ "$igt" = "0 0" ] && [ "$(at "$work/igt.trace" 517 4)" = "0" ] && [ "$(at "$
 	report "time:igt" PASS "nothing counted before level 5; then one tick a step through the minute's rollover: 782 = 01:05.166 at step 1299"
 else
 	report "time:igt" FAIL "off-by-a-tick steps and ms mismatches: $igt; IGT $(at "$work/igt.trace" 517 4) at 517, level $(at "$work/igt.trace" 600 1), minutes $(at "$work/igt.trace" 1299 2), IGT $(at "$work/igt.trace" 1299 4) $(at "$work/igt.trace" 1299 5)"
+fi
+
+# IGT From Level 1 (on by default): the ticks of play before the clock starts
+# count too. Levels 1 to 4 skipped with Next Level, the copy protection after
+# level 2 answered, the story scenes skipped: 984 ticks counted in those four
+# levels (none in a scene), then no more once the clock runs, and at every step
+# the time is that count plus the clock's. Off, the same run is the clock
+# alone, and the game plays exactly the same
+lv1_press=(--press 80:n:1 --press 400:n:1 --press 480:R:1 --press 484:R:1 --press 530:S:1 --press 900:n:1 --press 1300:n:1)
+for s in $(seq 100 20 380) $(seq 600 20 780) $(seq 920 20 1180) $(seq 1320 20 1600); do lv1_press+=(--press "$s:_:1"); done
+lv1_props="Level,Minutes Left,Ticks Left,IGT Ticks,IGT Before Clock,Kid.X,Kid.Room"
+wd="$(workdir lv1on '{"skip_title":true,"cheats":true}')"
+boxed "$wd" --frames 1900 "${lv1_press[@]}" --trace "$work/lv1on.trace" --trace-props "$lv1_props" > /dev/null 2>&1
+wd="$(workdir lv1off '{"skip_title":true,"cheats":true,"igt_from_level_1":false}')"
+boxed "$wd" --frames 1900 "${lv1_press[@]}" --trace "$work/lv1off.trace" --trace-props "$lv1_props" > /dev/null 2>&1
+# columns: 4 level, 5 minutes, 6 ticks, 7 IGT, 8 before the clock, 9-10 the prince
+lv1sum="$(awk '$1 ~ /^[0-9]+$/ && $7 != $8 + 54644 - ($5 * 719 + $6) { bad++ } END { print bad + 0 }' "$work/lv1on.trace")"
+lv1play() { awk '$1 ~ /^[0-9]+$/ { print $1, $4, $5, $6, $9, $10 }' "$1"; }
+if [ -s "$work/lv1on.trace" ] && [ "$lv1sum" = "0" ] && [ "$(at "$work/lv1on.trace" 100 5)" = "61" ] &&
+   [ "$(at "$work/lv1on.trace" 1386 1)" = "4" ] && [ "$(at "$work/lv1on.trace" 1387 1)" = "5" ] &&
+   [ "$(at "$work/lv1on.trace" 1386 5)" = "984" ] && [ "$(at "$work/lv1on.trace" 1899 5)" = "984" ] &&
+   [ "$(at "$work/lv1on.trace" 1899 4)" = "$((984 + $(at "$work/lv1off.trace" 1899 4)))" ] &&
+   [ "$(at "$work/lv1off.trace" 1386 4)" = "0" ] &&
+   cmp -s <(lv1play "$work/lv1on.trace") <(lv1play "$work/lv1off.trace"); then
+	report "time:from-level-1" PASS "levels 1-4 count 984 ticks, the clock takes over at level 5: $(at "$work/lv1on.trace" 1899 4) at step 1899 ($(at "$work/lv1off.trace" 1899 4) off); play identical either way"
+else
+	report "time:from-level-1" FAIL "sum mismatches $lv1sum; before $(at "$work/lv1on.trace" 100 5)@100 $(at "$work/lv1on.trace" 1386 5)@1386 $(at "$work/lv1on.trace" 1899 5)@1899; level $(at "$work/lv1on.trace" 1387 1)@1387; IGT $(at "$work/lv1on.trace" 1899 4) on, $(at "$work/lv1off.trace" 1899 4) off"
+fi
+# ...and only a game's play: the title and its demos (one of level 1 and one
+# of level 4 within 15000 frames) count nothing, and a clock no game has set
+# is no time. Restart Game starts the count over with the new game
+wd="$(workdir lv1title '{}')"
+boxed "$wd" --frames 15000 --trace "$work/lv1title.trace" --trace-props "Level,IGT Ticks,IGT Before Clock,Tick" > /dev/null 2>&1
+title="$(awk '$1 ~ /^[0-9]+$/ { if (lt != "" && $7 != lt) moved++; lt = $7; if ($5 != 0 || $6 != 0) nz++ } END { print moved + 0, nz + 0 }' "$work/lv1title.trace")"
+wd="$(workdir lv1restart '{"skip_title":true}')"
+boxed "$wd" --frames 100 --press 60:r:1 --trace "$work/lv1restart.trace" --trace-props "Level,IGT Ticks,IGT Before Clock" > /dev/null 2>&1
+if [ "${title%% *}" -gt 100 ] && [ "${title##* }" = "0" ] &&
+   [ "$(at "$work/lv1restart.trace" 59 3)" = "60" ] && [ "$(at "$work/lv1restart.trace" 60 3)" = "0" ] && [ "$(at "$work/lv1restart.trace" 75 3)" = "15" ]; then
+	report "time:only-play" PASS "the demos ran ${title%% *} ticks and counted none; Restart Game at 60 steps: 60 -> 0, 15 by step 75"
+else
+	report "time:only-play" FAIL "demo ticks / nonzero steps: $title; restart $(at "$work/lv1restart.trace" 59 3) $(at "$work/lv1restart.trace" 60 3) $(at "$work/lv1restart.trace" 75 3)"
 fi
 
 # ------------------------------------------------------------------ 7. the package

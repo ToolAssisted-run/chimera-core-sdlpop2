@@ -151,6 +151,13 @@ def main():
                 "default": False,
                 "description": "Start the program with the cheat word on its command line (yippeeyahoo), as the original allowed: the cheats' buttons exist only with this on (the DOS game's cheats and SDLPoP2's own), and Next Level (Alt+N) reaches any level.",
             },
+            {
+                "name": "igt_from_level_1",
+                "display": "IGT From Level 1",
+                "type": "bool",
+                "default": True,
+                "description": "The in-game time (IGT, the project's GameTime) counts from the very beginning of level 1. The game's own clock stays stopped until the first story scene after level 4, so without this the levels before it count nothing; with it their ticks of play are added, counted as the clock counts them (while the prince lives). Changes nothing in the game.",
+            },
         ] + ini_settings(),
         "firmware": firmware,
     }

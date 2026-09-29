@@ -40,10 +40,23 @@ typedef struct
 	uint16_t next_level;    /* +20 the level the game goes to (the level ends when it is not this one) */
 	uint32_t igt_ticks;     /* +22 the in-game time, in ticks of the game's clock */
 	uint32_t igt_ms;        /* +26 the same in milliseconds, 12 ticks a second */
+	uint32_t igt_before;    /* +30 ticks of play before the game's clock started */
 } game_state;
 #pragma pack(pop)
 
 static game_state g_state;
+
+/* The game's clock stays stopped until the first story scene after level 4.
+ * Patch 0003 tells the core each tick of play it would have counted before
+ * then (as the clock counts: while the prince lives, never in a demo), and
+ * when a new game sets the clock, so the count starts over with the game's.
+ * With the igt_from_level_1 setting (on) the in-game time adds them: the time
+ * from the start of level 1. It lives in guest memory, so a savestate has it. */
+static uint32_t g_igt_before;
+static int g_igt_from_level_1 = 1;
+void clock_stopped_tick(void) { g_igt_before++; }
+void clock_set_for_game(void) { g_igt_before = 0; }
+void gamestate_igt_from_level_1(int on) { g_igt_from_level_1 = on; }
 /* PRINCE.HOF: a count (u16), then six entries of a 27-byte name and the
  * minutes left (u16) */
 static uint8_t g_hof[2 + 6 * 29];
@@ -63,12 +76,19 @@ void gamestate_from_game(void)
 	/* The in-game time: what the game's clock has counted down from the time a
 	 * game starts with. game_clock() takes a tick off each tick it runs and,
 	 * at 0, puts a minute's ticks back and takes a minute: so the count is
-	 * minutes x ticks-per-minute + ticks. */
+	 * minutes x ticks-per-minute + ticks. From level 1 (the setting), with the
+	 * ticks before the clock started. */
 	{
 		const int64_t tpm = GAME_SETTING(ticks_per_minute, 0x2CF);
 		const int64_t start = (int64_t)GAME_SETTING(start_minutes_left, 75) * tpm + tpm;
-		const int64_t ticks = start - ((int64_t)minutes_left * tpm + clock_ticks);
-		g_state.igt_ticks = ticks > 0 ? (uint32_t)ticks : 0;
+		/* a clock at 0:0 is one no game has set (the title's): the clock
+		 * puts a minute's ticks back whenever it reaches 0, so play never
+		 * leaves it there */
+		int64_t ticks = minutes_left == 0 && clock_ticks == 0 ? 0 : start - ((int64_t)minutes_left * tpm + clock_ticks);
+		if (ticks < 0) ticks = 0;
+		if (g_igt_from_level_1) ticks += g_igt_before;
+		g_state.igt_before = g_igt_before;
+		g_state.igt_ticks = (uint32_t)ticks;
 		g_state.igt_ms = (uint32_t)((uint64_t)g_state.igt_ticks * 1000 / 12);
 	}
 	/* the hall of fame, as the game last wrote it */
@@ -211,8 +231,9 @@ static void table_init(void)
 	prop("Frame Delay", "Game State", 14, "u16", "Game", "\"description\": \"1/60 s between this tick and the next (5 walking, 6 fighting)\"");
 	prop("Mob Count", "Game State", 16, "u16", "Game", "\"writable\": false");
 	prop("Trob Count", "Game State", 18, "u16", "Game", "\"writable\": false");
-	prop("IGT Ticks", "Game State", 22, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time: the ticks the game's clock has counted down since the game started (the clock runs from the first story scene after level 3)\"");
+	prop("IGT Ticks", "Game State", 22, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time: the ticks the game's clock has counted down since the game started (it runs from the first story scene after level 4), and with IGT From Level 1 the ticks of play before that (IGT Before Clock)\"");
 	prop("IGT Ms", "Game State", 26, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time in milliseconds, 12 ticks a second: IGT mm:ss.mmm\"");
+	prop("IGT Before Clock", "Game State", 30, "u32", "Game", "\"writable\": false, \"description\": \"Ticks of play from the start of level 1 before the game's clock started, counted as the clock counts (while the prince lives); added to the in-game time with IGT From Level 1\"");
 	prop("Next Level", "Game State", 20, "u16", "Game", "\"description\": \"The level the game goes to: the level ends when this is not the level being played (15 after level 14: the game is won)\"");
 
 	/* the prince, and the room's five character slots */

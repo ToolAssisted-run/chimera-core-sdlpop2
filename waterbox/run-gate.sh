@@ -162,13 +162,29 @@ fi
 
 # ------------------------------------------------------------------ 5. the runs
 props="Level,Kid.X,Kid.Y,Kid.Room,Kid.HP,Minutes Left,Ticks Left,Kid.Alive"
+# what the command and cheat runs read
+cprops="Level,Kid.X,Kid.Y,Kid.Room,Drawn Room,Minutes Left,Kid.HP,Kid.Max HP,Kid.Alive"
 # name, steps, settings
 tests=(
 	"title|700|{}"
 	"play|400|{\"skip_title\":true}"
+	"commands|500|{\"skip_title\":true,\"first_level\":2}"
+	"cheats|400|{\"skip_title\":true,\"first_level\":2,\"cheats\":true}"
 )
+# the command keys, each once, on level 2 (where the prince is safe): the
+# messages, the pause (Show Time ends it), Restart Level after a run (the
+# minutes kept) and Restart Game (the minutes back to 75)
+commands_args=(--press 30:_:1 --press 60:u:1 --press 90:m:1 --press 120:v:1 --press 150:j:1 --press 180:k:1
+	--press 210:X:1 --press 240:_:1 --poke "300:Minutes Left=50" --press 320:R:10 --press 335:a:1 --press 380:r:1)
+# every cheat, on level 2: the DOS game's and SDLPoP2's own
+cheats_args=(--press 30:+:1 --press 40:-:1 --press 50:M:1 --press 60:1:1 --press 70:O:1 --press 80:I:1 --press 90:I:1
+	--press 100:W:1 --press 110:P:1 --press 115:P:1 --press 120:G:1 --press 130:Z:1 --press "140:<:1" --press "150:>:1"
+	--press 160:^:1 --press 170:~:1 --press "180:<:1" --press 190:Q:1 --press 200:AU:15 --press 230:F:1 --press 240:B:1
+	--press 250:2:1 --press 260:3:1 --press 270:4:1 --poke "280:Kid.HP=0" --press 330:V:1)
 test_args() {
 	case "$1" in
+		commands) args=("${commands_args[@]}" $(for s in 62 92 122 152 182 212; do echo --screenshot "$s:$work/cmd-$s.tga"; done)) ;;
+		cheats) args=("${cheats_args[@]}" $(for s in 72 82 112 122 132 142 232 242; do echo --screenshot "$s:$work/cheat-$s.tga"; done)) ;;
 		# the title sequence: the Broderbund card, the credits
 		title) args=(--screenshot "300:$work/title.tga" --screenshot "599:$work/credits.tga") ;;
 		# level 1 from its first tick: run right off the roof, die, a key
@@ -181,7 +197,7 @@ for t in "${tests[@]}"; do
 	wd="$(workdir "$name" "$settings")"
 	test_args "$name"
 	args+=(--frames "$frames")
-	trace=(--trace-props "$props" --trace)
+	case "$name" in commands|cheats) trace=(--trace-props "$cprops" --trace) ;; *) trace=(--trace-props "$props" --trace) ;; esac
 
 	if ! native "$wd" "${args[@]}" --props-json "$work/$name.native.json" "${trace[@]}" "$work/$name.native.trace" > "$work/$name.native.txt" 2> "$work/$name.native.err"; then
 		report "$name:equivalence" FAIL "native runner: $(tail -1 "$work/$name.native.err")"; continue
@@ -318,6 +334,114 @@ if [ "$(at "$work/settings.trace" 19 1)" = "2" ] && [ "$(at "$work/settings.trac
 	report "settings:reach-the-game" PASS "first_level 2, start_minutes_left 5, start_hitp 5, no story scenes: level 2, 5 minutes, 5 hit points"
 else
 	report "settings:reach-the-game" FAIL "level $(at "$work/settings.trace" 19 1), minutes $(at "$work/settings.trace" 19 6), HP $(at "$work/settings.trace" 19 5)"
+fi
+
+# ------------------------------------------------------------------ 6b. the keys
+# the bottom line of a picture (the game's messages)
+strip() { tail -c +19 "$1" 2>/dev/null | head -c $((320 * 200 * 4)) | tail -c $((320 * 16 * 4)) | sha1sum | cut -c1-16; }
+tgapixels() { tail -c +19 "$1" 2>/dev/null | sha1sum | cut -c1-16; }
+# every command and cheat button reaches the program as the DOS key code its
+# key has (SDLPoP2's own trace of the keys the game reads while playing): Alt
+# commands scan << 8, Shift+letter a capital, F3 and the Alt arrows their codes
+keycodes() { SHELL_TRACE=1 timeout 300 "$nat/run-native" "$@" 2>&1 | awk '/ shell key / { printf "%s ", $4 }'; }
+kc="$(keycodes "$work/commands" --frames 500 "${commands_args[@]}")"
+kn="$(keycodes "$work/commands" --frames 60 --press 30:n:1 --trace "$work/nextlevel.trace" --trace-props "$cprops")"
+kh="$(keycodes "$work/cheats" --frames 400 "${cheats_args[@]}")"
+want_c="32 7936 12800 12032 9216 9472 27 32 19712 7680 4864 "
+want_h="43 45 84 75 82 73 73 87 15616 15616 71 122 39680 40192 38912 40960 39680 116 18432 97 98 104 103 107 83 114 "
+if [ "$kc" = "$want_c" ] && [ "$kn" = "12544 " ] && [ "$kh" = "$want_h" ]; then
+	report "keys:codes" PASS "10 commands (Space, Alt+S M V J K, Esc, Alt+A R N) and 22 cheats arrive as the DOS game's key codes"
+else
+	report "keys:codes" FAIL "commands [$kc] next [$kn] cheats [$kh]"
+fi
+
+# ------------------------------------------------------------------ 6c. the commands
+ct="$work/commands.trace"
+msgs=""; for s in 62 92 122 152 182 212; do png "cmd-$s"; msgs="$msgs$(strip "$work/cmd-$s.tga") "; done
+if [ "$msgs" = "c0564ca64c3fc3bf 2b8aae47c79a1313 512534bd5f388ed7 7890fc2191525a40 77b641355b98cf3b c33fa1725b5d00ea " ]; then
+	report "commands:messages" PASS "SOUND OFF, AMBIENT MUSIC OFF, PRINCE OF PERSIA 2 V1.1, JOYSTICK NOT FOUND, KEYBOARD MODE, GAME PAUSED"
+else
+	report "commands:messages" FAIL "strips $msgs(build/gate/cmd-*.png)"
+fi
+# paused until a key; Restart Level puts the prince back and keeps the
+# minutes, Restart Game starts again at 75; Next Level cuts them to 15
+one="3146875/44900"
+if [ "$(awk '$1 == 212' "$ct" | cut -d' ' -f2)" = "$one" ] && [ "$(awk '$1 == 239' "$ct" | cut -d' ' -f2)" = "$one" ] &&
+   [ "$(awk '$1 == 245' "$ct" | cut -d' ' -f2)" != "$one" ] &&
+   [ "$(at "$ct" 330 2)" != "$(at "$ct" 319 2)" ] && [ "$(at "$ct" 345 6)" = "50" ] && [ "$(at "$ct" 390 6)" = "75" ] &&
+   [ "$(at "$work/nextlevel.trace" 40 6)" = "15" ]; then
+	report "commands:effects" PASS "paused 212-239; Restart Level keeps 50 minutes, Restart Game 75; Next Level: 15 minutes"
+else
+	report "commands:effects" FAIL "rates $(awk '$1 == 212 || $1 == 239 || $1 == 245 { printf "%s ", $2 }' "$ct"), X $(at "$ct" 319 2)->$(at "$ct" 330 2), minutes $(at "$ct" 345 6)/$(at "$ct" 390 6)/$(at "$work/nextlevel.trace" 40 6)"
+fi
+
+# the copy protection (a level 3 start asks it): the action button chooses
+# the symbol - here the third, the answer for this seed: the level begins; the
+# first is wrong and the next question comes; with no choice it waits
+copyprot_run() { boxed "$work/copyprot" --frames 400 "$@" --trace "$work/cp.trace" --trace-props "Level" > /dev/null 2>&1; awk '$1 == 399 { print $4, $2 }' "$work/cp.trace"; }
+workdir copyprot '{"skip_title":true,"first_level":3}' > /dev/null
+right="$(copyprot_run --press 99:R:1 --press 103:R:1 --press 150:S:1)"; wrong="$(copyprot_run --press 150:S:1)"; none="$(copyprot_run)"
+if [ "$right" = "3 3146875/269400" ] && [ "$wrong" = "0 $one" ] && [ "$none" = "0 $one" ]; then
+	report "commands:copy-protection" PASS "Shift on the right symbol: level 3 plays; on a wrong one, or none chosen, the copy protection still asks"
+else
+	report "commands:copy-protection" FAIL "right [$right] wrong [$wrong] none [$none]"
+fi
+
+# the hall of fame's name is the player_name setting ("Chimera" unless set),
+# entered by the game itself: level 14 (its copy protection answered), the
+# game won by Next Level poked to 15, the closing scene skipped with Space
+wd="$(workdir hofname '{"skip_title":true,"first_level":14}')"
+boxed "$wd" --frames 700 --press 99:R:1 --press 103:R:1 --press 150:S:1 --poke "400:Next Level=15" --press 420:_:1 \
+	--trace "$work/hofname.trace" --trace-props "Hall of Fame.Count,Hall of Fame.Minutes[0]" --dump-domain "Hall of Fame" "$work/hof.bin" \
+	--screenshot "699:$work/hofname.tga" > /dev/null 2>&1
+png hofname
+wd="$(workdir hofblank '{"player_name":"   "}')"
+boxed "$wd" --frames 1 > "$work/hofblank.txt" 2>/dev/null
+if [ "$(tail -c +3 "$work/hof.bin" 2>/dev/null | head -c 27 | tr -d '\0')" = "Chimera" ] && [ "$(at "$work/hofname.trace" 699 1)" = "1" ] &&
+   [ "$(at "$work/hofname.trace" 699 2)" = "75" ] && grep -q "^loadError=the Player Name (Hall of Fame) setting has nothing the game can show" "$work/hofblank.txt"; then
+	report "settings:player-name" PASS "a won game (75 minutes left) enters Chimera, the default name, in the hall of fame by itself (build/gate/hofname.png); a blank one is refused"
+else
+	report "settings:player-name" FAIL "name [$(tail -c +3 "$work/hof.bin" 2>/dev/null | head -c 27 | tr -d '\0')], count $(at "$work/hofname.trace" 699 1), minutes $(at "$work/hofname.trace" 699 2); $(grep -m1 . "$work/hofblank.txt")"
+fi
+
+# ------------------------------------------------------------------ 6d. the cheats
+cht="$work/cheats.trace"
+if [ "$(at "$cht" 35 6)" = "76" ] && [ "$(at "$cht" 45 6)" = "75" ] && [ "$(at "$cht" 55 8)" = "4" ] && [ "$(at "$cht" 65 7)" = "3" ] &&
+   [ "$(at "$cht" 145 5)" = "1" ] && [ "$(at "$cht" 155 5)" = "2" ] && [ "$(at "$cht" 195 4)" = "1" ] &&
+   [ "$(at "$cht" 210 3)" -lt 60 ] && [ "$(at "$cht" 329 9)" -gt 0 ] && [ "$(at "$cht" 335 9)" = "-1" ]; then
+	report "cheats:effects" PASS "+/- minutes, a max hit point, one lost, Look Left/Right, Teleport to room 1, Fly (y $(at "$cht" 210 3)), Revive"
+else
+	report "cheats:effects" FAIL "min $(at "$cht" 35 6)/$(at "$cht" 45 6), HP $(at "$cht" 55 8) $(at "$cht" 65 7), drawn $(at "$cht" 145 5)/$(at "$cht" 155 5), room $(at "$cht" 195 4), y $(at "$cht" 210 3), alive $(at "$cht" 329 9)->$(at "$cht" 335 9)"
+fi
+cmsgs=""; for s in 72 112 122 132 142 232 242; do png "cheat-$s"; cmsgs="$cmsgs$(strip "$work/cheat-$s.tga") "; done
+png cheat-82
+if [ "$cmsgs" = "554f4dbace6d1a7e 01ad1e21a5b45c44 6935eae9edc808c3 056fd1ae30b62f23 31e453820a1b3b16 d534fdba0efb8f19 a3537c3f621e72ac " ] && [ "$(tgapixels "$work/cheat-82.tga")" = "b406b4e9cad0ee21" ]; then
+	report "cheats:messages" PASS "ROOM 2, PLAYER ON, GOD MODE ON, NO SWORD, ROOM 1, THE FLAME, ALREADY A SPIRIT; Flip Screen upside down (build/gate/cheat-*.png)"
+else
+	report "cheats:messages" FAIL "strips $cmsgs flip $(tgapixels "$work/cheat-82.tga")"
+fi
+# without the setting the cheats are no buttons: none is active, and pressing
+# every one changes nothing
+wd="$(workdir nocheats '{"skip_title":true,"first_level":2}')"
+boxed "$wd" --frames 300 > "$work/nocheats-plain.txt" 2>/dev/null
+boxed "$wd" --frames 300 --press "100:1234+-IOMWVPGBF:20" --press "100:Z<>^~QA:20" > "$work/nocheats-pressed.txt" 2>/dev/null
+if grep -qx 'activeButtons=16' "$work/nocheats-plain.txt" && grep -qx 'activeButtons=38' "$work/cheats.box.txt" &&
+   cmp -s <(digests < "$work/nocheats-plain.txt") <(digests < "$work/nocheats-pressed.txt"); then
+	report "cheats:off" PASS "16 buttons active without the setting (38 with it); every cheat held for 20 steps changes nothing"
+else
+	report "cheats:off" FAIL "$(grep activeButtons "$work/nocheats-plain.txt") / $(grep activeButtons "$work/cheats.box.txt"); $(diff <(digests < "$work/nocheats-plain.txt") <(digests < "$work/nocheats-pressed.txt") | head -2 | tr '\n' ' ')"
+fi
+# a key two buttons share is one key: Look Left (Alt+Left) held, P1 Left
+# pressed while it is, Look Left let go - the left arrow stays down (the
+# prince runs on once Alt is up), as one key would; lifting it with Look
+# Left would stop him
+wd="$(workdir sharedkey '{"skip_title":true,"first_level":2,"cheats":true}')"
+boxed "$wd" --frames 90 --press "30:<:15" --press 40:L:50 --trace "$work/leftlook.trace" --trace-props "Kid.X,Kid.Room" > /dev/null 2>&1
+pos() { echo "room $(at "$work/leftlook.trace" "$1" 2) x $(at "$work/leftlook.trace" "$1" 1)"; }
+if [ -s "$work/leftlook.trace" ] && [ "$(pos 85)" != "$(pos 46)" ]; then
+	report "keys:shared" PASS "Look Left let go while P1 Left holds the same key: the prince runs on ($(pos 46) -> $(pos 85))"
+else
+	report "keys:shared" FAIL "$(pos 46) -> $(pos 85)"
 fi
 
 # ------------------------------------------------------------------ 7. the package

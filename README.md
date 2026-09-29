@@ -8,9 +8,10 @@ Prince of Persia 2: The Shadow and the Flame (DOS), as a
 of fame - stepped one game step at a time in miniBox's sandbox, packaged as
 `sdlpop2.chimeraCore`.
 
-**Built on upstream SDLPoP2, with one patch**: it makes the five routines that
-read CONFIG.DAT and the game's own save files weak, so the core can answer
-them. Everything else is SDLPoP2's library compiled from source, with the
+**Built on upstream SDLPoP2, with two patches**: the first makes the five
+routines that read CONFIG.DAT and the game's own save files weak, so the core
+can answer them; the second adds two weak hooks, for the hall of fame's name
+and for the action button choosing the copy protection's symbol. Everything else is SDLPoP2's library compiled from source, with the
 core's own coroutines (musl has no ucontext) and its SDL frontend left out.
 
 ## What it is
@@ -30,28 +31,45 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
   in the story scenes, the menus and the pause, one VGA frame, because the
   program reads its keys every frame there. `GetVsyncNumerator/Denominator`
   report the step just run. Every step reads the controls.
-- **The controls are the DOS keyboard's**: P1 Up, Down, Left, Right, Shift and
-  Ctrl; and the keys the program reads outside play - Enter, Space, Esc, Tab,
-  Backspace, Alt and the letters (the menus, the scenes, the copy protection's
-  symbols, the hall of fame's name, the Alt keys). A button held is a key held
-  down; a button pressed is that key typed, once - there is no key repeat.
-- **Properties**: 339 in `GetGameProperties`. The level number, the time left,
-  the random seed and the tick in a packed `Game State` block, copied out after
-  each step and back before the next (so pokes and freezes work); the prince's
-  record, the room's five character slots, the level (every room's tiles,
-  attributes and the characters it starts with), the moving floors and the
-  tile animations in place, as further domains, described as arrays.
+- **The controls are the DOS keyboard's**, a button for each key the game
+  reads in play: P1 Up, Down, Left, Right, Shift and Ctrl; then the game's
+  commands - Pause (Esc) and Show Time (Space), either of which also skips a
+  story scene, Restart Level (Alt+A), Restart Game (Alt+R), Next Level
+  (Alt+N), Sound On/Off (Alt+S), Music On/Off (Alt+M), Version (Alt+V),
+  Joystick Mode (Alt+J) and Keyboard Mode (Alt+K). A button held is a key held
+  down; a button pressed is that key typed, once - there is no key repeat. The
+  game's saved games and its menus (Alt+G, Alt+L, Alt+O, Alt+H, Enter, Tab)
+  and the letter keys are left out. The copy protection's symbol is chosen
+  with the arrows and the action button (P1 Shift).
+- **Cheats**, with the Enable Cheats setting (off): the program starts with its
+  cheat word, as from the DOS command line, and 22 more buttons exist - the
+  DOS game's (Lose Hit Point, Opponent Hit Point, Kill Room, Spirit Leaves,
+  More Time, Less Time, Flip Screen, Show Room, Add Max Hit Point, Feather
+  Fall, Revive, Demo Player) and SDLPoP2's own (God Mode, Leave Body, Leave
+  Body Flame, Sword, Look Left/Right/Up/Down, Teleport, Fly). Without the
+  setting they are not buttons at all (`IsButtonActive`).
+- **The hall of fame's name** is the Player Name (Hall of Fame) setting
+  ("Chimera" by default): a won game's name is typed into the game's own
+  editor by itself.
+- **Properties**: 343 in `GetGameProperties`. The level number, the next
+  level (a poke of 15 on level 14 wins the game), the time left, the random
+  seed and the tick in a packed `Game State` block, copied out after each step
+  and back before the next (so pokes and freezes work); the prince's record,
+  the room's five character slots, the level (every room's tiles, attributes
+  and the characters it starts with), the moving floors and the tile
+  animations in place, as further domains, described as arrays; and the hall
+  of fame as the game last wrote it.
 - **Settings** that change play, recorded in the project: the random seed, the
-  cheat word, the intro and the story scenes, skipping the title, and
+  cheats, the player name, the intro and the story scenes, skipping the title, and
   SDLPoP2's gameplay settings (the minutes, the hit points, the first level,
   the speeds). Defaults are the original game; with every one at its default
   the game runs on SDLPoP2's verified path, with no overrides installed.
 - **The machine is the original setup's**: the Sound Blaster Pro's digitized
   sounds and FM music, and CONFIG.DAT as the DOS setup writes it for them -
   the core's own, since each player's file says what their machine had.
-- **Files the game writes** (saved games, the hall of fame, the options) live
-  in guest memory, so a savestate carries them. A saved game (PRINCE.SAV) is
-  the one file a project may add, for a run that starts from one.
+- **Files the game writes** (the hall of fame, the options) live in guest
+  memory, so a savestate carries them. A project needs no file of its own: its
+  file slot list is empty.
 
 ## Building
 

@@ -6,9 +6,8 @@
  * core's clock, and every memory domain.
  *
  * Input is a movie: one line per step, the buttons held on that step as
- * characters (U D L R, S = Shift, C = Ctrl, E = Enter, _ = Space, X = Esc,
- * T = Tab, B = Backspace, A = Alt, a..z = the letter keys; anything else
- * ignored); a line starting with # is a comment. --movie-at puts its first line at
+ * characters (gate_key_index: U D L R, S = Shift, C = Ctrl, X = Pause,
+ * _ = Show Time, then the commands and the cheats; anything else ignored); a line starting with # is a comment. --movie-at puts its first line at
  * a given step; --press adds a key held for a stretch of steps.
  *
  * Properties are reached the way the frontend reaches them: through the table
@@ -48,6 +47,7 @@ struct gate_core
 	void (*set_rendering)(int on);  /* optional (the turbo leg) */
 	uint64_t (*clock)(void);
 	const char *(*game_properties)(void);
+	int (*button_active)(int32_t index);   /* optional: IsButtonActive */
 };
 
 #define GATE_MAX_PRESS 64
@@ -99,13 +99,41 @@ static int gate_key_index(char c)
 	case 'R': return POP2_BTN_RIGHT;
 	case 'S': return POP2_BTN_SHIFT;
 	case 'C': return POP2_BTN_CTRL;
-	case 'E': return POP2_BTN_ENTER;
-	case '_': return POP2_BTN_SPACE;
-	case 'X': return POP2_BTN_ESCAPE;
-	case 'T': return POP2_BTN_TAB;
-	case 'B': return POP2_BTN_BACKSPACE;
-	case 'A': return POP2_BTN_ALT;
-	default: return c >= 'a' && c <= 'z' ? POP2_BTN_A + (c - 'a') : -1;
+	case 'X': return POP2_BTN_PAUSE;
+	case '_': return POP2_BTN_SHOW_TIME;
+	/* the commands */
+	case 'a': return POP2_BTN_RESTART_LEVEL;
+	case 'r': return POP2_BTN_RESTART_GAME;
+	case 'n': return POP2_BTN_NEXT_LEVEL;
+	case 'u': return POP2_BTN_SOUND_ON_OFF;
+	case 'm': return POP2_BTN_MUSIC_ON_OFF;
+	case 'v': return POP2_BTN_VERSION;
+	case 'j': return POP2_BTN_JOYSTICK_MODE;
+	case 'k': return POP2_BTN_KEYBOARD_MODE;
+	/* the cheats */
+	case '1': return POP2_BTN_CHEAT_LOSE_HIT_POINT;
+	case '2': return POP2_BTN_CHEAT_OPPONENT_HIT_POINT;
+	case '3': return POP2_BTN_CHEAT_KILL_ROOM;
+	case '4': return POP2_BTN_CHEAT_SPIRIT_LEAVES;
+	case '+': return POP2_BTN_CHEAT_MORE_TIME;
+	case '-': return POP2_BTN_CHEAT_LESS_TIME;
+	case 'I': return POP2_BTN_CHEAT_FLIP_SCREEN;
+	case 'O': return POP2_BTN_CHEAT_SHOW_ROOM;
+	case 'M': return POP2_BTN_CHEAT_ADD_MAX_HIT_POINT;
+	case 'W': return POP2_BTN_CHEAT_FEATHER_FALL;
+	case 'V': return POP2_BTN_CHEAT_REVIVE;
+	case 'P': return POP2_BTN_CHEAT_DEMO_PLAYER;
+	case 'G': return POP2_BTN_CHEAT_GOD_MODE;
+	case 'B': return POP2_BTN_CHEAT_LEAVE_BODY;
+	case 'F': return POP2_BTN_CHEAT_LEAVE_BODY_FLAME;
+	case 'Z': return POP2_BTN_CHEAT_SWORD;
+	case '<': return POP2_BTN_CHEAT_LOOK_LEFT;
+	case '>': return POP2_BTN_CHEAT_LOOK_RIGHT;
+	case '^': return POP2_BTN_CHEAT_LOOK_UP;
+	case '~': return POP2_BTN_CHEAT_LOOK_DOWN;
+	case 'Q': return POP2_BTN_CHEAT_TELEPORT;
+	case 'A': return POP2_BTN_CHEAT_FLY;
+	default: return -1;
 	}
 }
 
@@ -251,6 +279,13 @@ static int gate_run(const struct gate_core *c, const struct gate_opts *o)
 		fprintf(stderr, "Init failed: %s\n", c->load_error ? c->load_error() : "?");
 		printf("loadError=%s\n", c->load_error ? c->load_error() : "?");
 		return 1;
+	}
+	if (c->button_active)
+	{
+		/* the buttons the core says do something, as the frontend asks */
+		int n = 0;
+		for (int i = 0; i < GATE_BTN_COUNT; i++) n += c->button_active(i) ? 1 : 0;
+		printf("activeButtons=%d\n", n);
 	}
 	if (o->moviePath && !gate_load_movie(o->moviePath))
 		return 1;

@@ -32,6 +32,10 @@ ECL_EXPORT int Init(void)
 	return pop2drv_init(g_load_error, (int)sizeof g_load_error);
 }
 
+/* the cheats' buttons do something only when the cheats setting is on; the
+ * frontend asks after Init and hides the rest */
+ECL_EXPORT int IsButtonActive(int32_t index) { return pop2drv_button_active(index); }
+
 ECL_EXPORT void SetButton(int32_t index, int32_t state)
 {
 	if (index >= 0 && index < POP2_BTN_COUNT) g_set_buttons[index] = state ? 1 : 0;

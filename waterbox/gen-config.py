@@ -38,14 +38,15 @@ def game_files():
 
 
 def buttons():
+    """The input.buttons names, in the driver's enum order (pop2-driver.h)."""
     text = open(os.path.join(HERE, "pop2-driver.h")).read()
-    names = re.findall(r'^\tPOP2_BTN_(\w+),', text, re.M)
-    label = {"UP": "P1 Up", "DOWN": "P1 Down", "LEFT": "P1 Left", "RIGHT": "P1 Right", "SHIFT": "P1 Shift",
-             "CTRL": "P1 Ctrl", "ENTER": "Key Return", "SPACE": "Key Space", "ESCAPE": "Key Escape",
-             "TAB": "Key Tab", "BACKSPACE": "Key Backspace", "ALT": "Key Alt"}
-    out = [label[n] for n in names if n in label]
-    assert names[-1] == "A" and len(out) == len(names) - 1, names
-    return out + ["Key " + chr(ord("A") + i) for i in range(26)]
+    enum = text[text.index("enum Pop2Button"):text.index("POP2_BTN_COUNT")]
+    enum = re.sub(r"/\*.*?\*/", "", enum, flags=re.S)
+    syms = [s for s in re.findall(r"^\s*POP2_BTN_(\w+)(?:\s*=[^,]*)?,", enum, re.M) if s != "CHEAT_FIRST"]
+    special = {"UP": "P1 Up", "DOWN": "P1 Down", "LEFT": "P1 Left", "RIGHT": "P1 Right", "SHIFT": "P1 Shift",
+               "CTRL": "P1 Ctrl", "SOUND_ON_OFF": "Sound On/Off", "MUSIC_ON_OFF": "Music On/Off"}
+    # the rest: the symbol's words, capitalised (CHEAT_ADD_MAX_HIT_POINT -> Cheat Add Max Hit Point)
+    return [special.get(s) or " ".join(w.capitalize() for w in s.split("_")) for s in syms]
 
 
 WHAT = {
@@ -123,7 +124,7 @@ def main():
         "lag": {"inputWasRead": "InputWasRead"},
         "input": {
             "name": "Prince of Persia 2",
-            "_comment": "The DOS game's keyboard. P1: the arrows, Shift (grab, careful step, pick up, drink) and Ctrl (the sword; the spirit's spell). The keys: Enter, Space, Esc, Tab, Backspace and the letters for the menus, the story scenes, the copy protection's symbols (the arrows and Enter) and the hall of fame's name; Alt for the game's Alt keys (Alt+A restarts the level). A key pressed is typed once; there is no key repeat.",
+            "_comment": "The DOS game's keyboard, a button for each key the game reads in play. P1: the arrows, Shift (grab, careful step, pick up, drink; it also chooses the copy protection's symbol, as Enter does) and Ctrl (the sword; the spirit's spell). The game's commands: Pause (Esc) and Show Time (Space) - either also skips a story scene - Restart Level (Alt+A), Restart Game (Alt+R), Next Level (Alt+N), Sound On/Off (Alt+S), Music On/Off (Alt+M), Version (Alt+V), Joystick Mode (Alt+J), Keyboard Mode (Alt+K). With the cheats setting on, the cheats: the DOS game's (Lose Hit Point Shift+K, Opponent Hit Point g, Kill Room k, Spirit Leaves Shift+S, More Time and Less Time keypad + and -, Flip Screen Shift+I, Show Room Shift+R, Add Max Hit Point Shift+T, Feather Fall Shift+W, Revive r, Demo Player F3) and SDLPoP2's own (God Mode Shift+G, Leave Body h, Leave Body Flame b, Sword z, Look Left/Right/Up/Down Alt+arrows, Teleport t, Fly A held). Left out: the game's saved games and its menus (Alt+G, Alt+L, Alt+O, Alt+H, Enter, Tab) and the letter keys; the hall of fame's name is the player_name setting, entered by the game itself. A key pressed is typed once; there is no key repeat.",
             "buttons": buttons(),
         },
         "settings": [
@@ -137,11 +138,18 @@ def main():
                 "description": "The seed of the game's random number generator at start (the DOS program took it from the clock). A movie records the number it ran with.",
             },
             {
+                "name": "player_name",
+                "display": "Player Name (Hall of Fame)",
+                "type": "string",
+                "default": "Chimera",
+                "description": "The name a won game enters in the hall of fame, when its time earns a place there - typed into the game's own editor as the keys would have typed it (the characters the font has, as many as the box holds, up to 24). There are no letter keys: the game enters it by itself.",
+            },
+            {
                 "name": "cheats",
-                "display": "Cheat word",
+                "display": "Enable Cheats",
                 "type": "bool",
                 "default": False,
-                "description": "Start the program with the cheat word on its command line (yippeeyahoo), as the original allowed: the cheat keys, and Alt+N to any level.",
+                "description": "Start the program with the cheat word on its command line (yippeeyahoo), as the original allowed: the cheats' buttons exist only with this on (the DOS game's cheats and SDLPoP2's own), and Next Level (Alt+N) reaches any level.",
             },
         ] + ini_settings(),
         "firmware": firmware,

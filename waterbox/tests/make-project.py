@@ -26,28 +26,39 @@ def sha1(path):
     return h.hexdigest().upper()
 
 
-KEYS = "_XTBA"   # Space, Esc, Tab, Backspace, Alt in the harness's letters (gate-harness.h)
+# the harness's letters (gate-harness.h gate_key_index), by button name
+LETTERS = {
+    "U": "P1 Up", "D": "P1 Down", "L": "P1 Left", "R": "P1 Right", "S": "P1 Shift", "C": "P1 Ctrl",
+    "X": "Pause", "_": "Show Time",
+    "a": "Restart Level", "r": "Restart Game", "n": "Next Level", "u": "Sound On/Off", "m": "Music On/Off", "v": "Version",
+    "j": "Joystick Mode", "k": "Keyboard Mode",
+    "1": "Cheat Lose Hit Point", "2": "Cheat Opponent Hit Point", "3": "Cheat Kill Room", "4": "Cheat Spirit Leaves",
+    "+": "Cheat More Time", "-": "Cheat Less Time", "I": "Cheat Flip Screen", "O": "Cheat Show Room",
+    "M": "Cheat Add Max Hit Point", "W": "Cheat Feather Fall", "V": "Cheat Revive", "P": "Cheat Demo Player",
+    "G": "Cheat God Mode", "B": "Cheat Leave Body", "F": "Cheat Leave Body Flame", "Z": "Cheat Sword",
+    "<": "Cheat Look Left", ">": "Cheat Look Right", "^": "Cheat Look Up", "~": "Cheat Look Down",
+    "Q": "Cheat Teleport", "A": "Cheat Fly",
+}
 
 
-def row(held):
+def row(held, keys, p1):
     # the log's two groups, as the engine orders them: the keys first (player
-    # 0: Return, Space, Escape, Tab, Backspace, Alt, A..Z), then P1 (the
+    # 0: the commands, the cheats that are active), then P1 (the
     # arrows, Shift, Ctrl)
-    keys = ["E" in held] + [c in held for c in KEYS] + [chr(ord("a") + i) in held for i in range(26)]
-    p1 = [c in held for c in "UDLRSC"]
-    return ("|" + "".join("x" if k else "." for k in keys) + "|"
-            + "".join(c if k else "." for c, k in zip("UDLRSC", p1)) + "|")
+    names = {LETTERS[c] for c in held if c in LETTERS}
+    return ("|" + "".join("x" if k in names else "." for k in keys) + "|"
+            + "".join(c if n in names else "." for c, n in zip("UDLRSC", p1)) + "|")
 
 
-def rows_from(movie, frames):
+def rows_from(movie, frames, keys, p1):
     rows = []
     if movie:
         for line in open(movie):
             if line.startswith("#"):
                 continue
-            rows.append(row(line.rstrip("\n")))
+            rows.append(row(line.rstrip("\n"), keys, p1))
     while len(rows) < frames:
-        rows.append(row(""))
+        rows.append(row("", keys, p1))
     return rows[:frames]
 
 
@@ -80,16 +91,19 @@ def main():
     a = ap.parse_args()
 
     cfg = json.loads(zipfile.ZipFile(a.package).read("waterbox.config"))
-    buttons = cfg["input"]["buttons"]
-    rows = rows_from(a.movie, a.frames)
-    if a.log_out:
-        open(a.log_out, "w").write("\n".join(rows) + "\n")
-    keys = [b for b in buttons if not b.startswith("P1 ")]
-    p1 = [b for b in buttons if b.startswith("P1 ")]
-    log = "[Input]\nLogKey:#" + "|".join(keys) + "|#" + "|".join(p1) + "|\n" + "\n".join(rows) + "\n[/Input]\n"
-
     settings = {d["name"]: d["default"] for d in cfg["settings"]}
     settings.update(json.loads(a.settings))
+    # the cheats' buttons are active only with the cheats setting on
+    # (IsButtonActive), and the log has only the active ones
+    buttons = [b for b in cfg["input"]["buttons"] if settings.get("cheats") or not b.startswith("Cheat ")]
+    keys = [b for b in buttons if not b.startswith("P1 ")]
+    p1 = [b for b in buttons if b.startswith("P1 ")]
+    assert set(buttons) <= set(LETTERS.values()), set(buttons) - set(LETTERS.values())
+    rows = rows_from(a.movie, a.frames, keys, p1)
+    if a.log_out:
+        open(a.log_out, "w").write("\n".join(rows) + "\n")
+    log = "[Input]\nLogKey:#" + "|".join(keys) + "|#" + "|".join(p1) + "|\n" + "\n".join(rows) + "\n[/Input]\n"
+
     files = []
     for spec in a.file:
         slot, path = spec.split("=", 1)

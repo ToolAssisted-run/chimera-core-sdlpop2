@@ -1,0 +1,48 @@
+Subject: the hall of fame name and the copy protection answer can come from the frontend
+
+Two weak hooks, each a no-op in SDLPoP2's own build: hof_given_name()
+gives the name the hall of fame asks for, typed into the editor as its
+keys would have typed it, for a frontend with no letter keys; and
+cp_action_pressed() lets the action button choose the copy protection's
+symbol as Enter does.
+
+diff --git a/source/menu.c b/source/menu.c
+index 3d75688..f634d3f 100644
+--- a/source/menu.c
++++ b/source/menu.c
+@@ -462,11 +462,19 @@ static void hof_screen(const hof_list *h)   /* 0D5E:17F2 */
+ 		text_shadowed(just, &r, NULL, 0, 10, t);
+ 	}
+ }
++/* a frontend with no letter keys may give the name itself: each character is typed into the editor as its key would
++ * have typed it, and the name taken as Enter would take it (none: the player types it) */
++__attribute__((weak)) const char *hof_given_name(void) { return NULL; }
+ static void hof_type_name(int i, hof_list *h)   /* 0D5E:18FC */
+ {
+ 	qrect r = rect_inset(hof_rect(i), 0, -2);
+ 	box(1, &r); r = rect_inset(r, 2, 2);
+ 	line_edit ed; edit_new(&ed, h->e[i].name, 0x18, &r); edit_caret(&ed, 1);
++	const char *given = hof_given_name();
++	if (given) {
++		for (; *given; given++) edit_key(&ed, (uint8_t)*given);
++		if (strlen(h->e[i].name)) return;
++	}
+ 	for (int done = 0; !done;) {
+ 		edit_blink(&ed);
+ 		int key = sh_key();
+@@ -530,12 +538,15 @@ static void cp_frame(int hilite, int i)   /* 0D5E:1536 */
+ 	int h, v = cp_pt(i, &h); qrect r = { (int16_t)(v - 3), (int16_t)(h - 3), (int16_t)(v - 3 + 0x23), (int16_t)(h - 3 + 0x23) };
+ 	gfx_frame_rect(&r); the_port->fg = fg;
+ }
++/* a frontend may let the action button choose the symbol, as Enter does (none: only Enter) */
++__attribute__((weak)) int cp_action_pressed(void) { return 0; }
+ static int cp_choose(void)   /* 0D5E:1598 */
+ {
+ 	int shown = -1, cur = 0;
+ 	for (;;) {
+ 		if (shown != cur) { if (shown != -1) cp_frame(0, shown); cp_frame(1, cur); shown = cur; }
+ 		int key = sh_key(), done = 0;
++		if (!key && cp_action_pressed()) key = 0xD;
+ 		switch (key) {
+ 		case 9: cur = cur == 9 ? 0 : cur + 1; break;
+ 		case 0xD: done = 1; break;

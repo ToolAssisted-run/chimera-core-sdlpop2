@@ -88,6 +88,10 @@ static struct
 	shell_input in;
 	uint8_t held[POP2_BTN_COUNT];  /* what the previous step held */
 	uint8_t want[POP2_BTN_COUNT];  /* what this step holds */
+	int shift_down, alt_down;      /* the modifier keys the buttons hold down */
+	int cheats;                    /* the program started with its cheat word */
+	int action_pressed;            /* P1 Shift went down in this step (the copy protection) */
+	char player_name[64];          /* the hall of fame's name for a won game */
 	pop2_settings settings;
 	uint64_t frames;               /* VGA frames the program has run */
 	uint64_t samples;              /* sound samples rendered through them */
@@ -293,28 +297,26 @@ static int check_files(char *err, int errsize)
 	return 1;
 }
 
-/* The project's "savegame" slot: a PRINCE.SAV the game finds as if it had
- * written it, so a run can start from a saved game (Alt+L restores it). */
-static int load_savegame(char *err, int errsize)
+/* the hall of fame as the game last wrote it (PRINCE.HOF), for the property
+ * table: none until a won game enters a name */
+long pop2drv_hof(uint8_t *buf, long max)
 {
-	char name[512];
-	if (!wbx_slot_first("savegame", name, sizeof name)) return 1;
-	FILE *f = fopen(name, "rb");
-	if (!f)
-	{
-		snprintf(err, (size_t)errsize, "the saved game %s could not be opened", name);
-		return 0;
-	}
-	static uint8_t buf[SAVE_FILE_MAX];
-	const long n = (long)fread(buf, 1, sizeof buf, f);
-	const int more = fgetc(f) != EOF;
-	fclose(f);
-	if (n <= 0 || more || !file_create("PRINCE.SAV", buf, n))
-	{
-		snprintf(err, (size_t)errsize, "%s is not a Prince of Persia 2 saved game (PRINCE.SAV)", name);
-		return 0;
-	}
-	return 1;
+	const int i = file_index("PRINCE.HOF", 0);
+	if (i < 0) return 0;
+	const long n = g_files[i].len < max ? g_files[i].len : max;
+	memcpy(buf, g_files[i].data, (size_t)n);
+	return n;
+}
+
+/* patch 0002's hooks: the hall of fame's name (the player_name setting), and
+ * the action button choosing the copy protection's symbol - pressed in this
+ * step, taken once */
+const char *hof_given_name(void) { return g.player_name; }
+int cp_action_pressed(void)
+{
+	const int r = g.action_pressed;
+	g.action_pressed = 0;
+	return r;
 }
 
 int pop2drv_init(char *err, int errsize)
@@ -323,12 +325,21 @@ int pop2drv_init(char *err, int errsize)
 	memset(g_files, 0, sizeof g_files);
 	if (!check_files(err, errsize)) return 0;
 	if (apply_settings(err, errsize) < 0) return 0;
-	if (!load_savegame(err, errsize)) return 0;
+	/* the name a won game enters in the hall of fame: the game takes the
+	 * printable characters, and wants at least one */
+	if (wbx_setting_str("player_name", g.player_name, sizeof g.player_name) < 0) strcpy(g.player_name, "Chimera");
+	int printable = 0;
+	for (const char *c = g.player_name; *c; c++) printable |= *c > 0x20 && *c < 0x7F;
+	if (!printable)
+	{
+		snprintf(err, (size_t)errsize, "the Player Name (Hall of Fame) setting has nothing the game can show - give it a name");
+		return 0;
+	}
 
 	/* the cheat word on the DOS command line, which the game reads as the
 	 * original did: it also lets Alt+N skip past level 3 and the debug keys */
 	static const char *words[] = { "yippeeyahoo" };
-	const int cheats = wbx_setting_bool("cheats", 0);
+	const int cheats = g.cheats = wbx_setting_bool("cheats", 0) != 0;
 	const uint32_t seed = (uint32_t)(wbx_setting_long("random_seed", 0) & 0xFFFFFFFFl);
 
 	/* the original setup's sound: the digitized sounds and the FM music, as the
@@ -358,56 +369,101 @@ int pop2drv_init(char *err, int errsize)
 /* --------------------------------------------------------------------- input */
 
 /* the PC scan code (set 1) and the character each button types */
-static const uint8_t k_scan[POP2_BTN_COUNT] = {
-	[POP2_BTN_UP] = 0x48, [POP2_BTN_DOWN] = 0x50, [POP2_BTN_LEFT] = 0x4B, [POP2_BTN_RIGHT] = 0x4D,
-	[POP2_BTN_SHIFT] = 0x2A, [POP2_BTN_CTRL] = 0x1D, [POP2_BTN_ENTER] = 0x1C, [POP2_BTN_SPACE] = 0x39,
-	[POP2_BTN_ESCAPE] = 0x01, [POP2_BTN_TAB] = 0x0F, [POP2_BTN_BACKSPACE] = 0x0E, [POP2_BTN_ALT] = 0x38,
-	/* A..Z by their place on the keyboard */
-	[POP2_BTN_A + 0] = 0x1E, [POP2_BTN_A + 1] = 0x30, [POP2_BTN_A + 2] = 0x2E, [POP2_BTN_A + 3] = 0x20,
-	[POP2_BTN_A + 4] = 0x12, [POP2_BTN_A + 5] = 0x21, [POP2_BTN_A + 6] = 0x22, [POP2_BTN_A + 7] = 0x23,
-	[POP2_BTN_A + 8] = 0x17, [POP2_BTN_A + 9] = 0x24, [POP2_BTN_A + 10] = 0x25, [POP2_BTN_A + 11] = 0x26,
-	[POP2_BTN_A + 12] = 0x32, [POP2_BTN_A + 13] = 0x31, [POP2_BTN_A + 14] = 0x18, [POP2_BTN_A + 15] = 0x19,
-	[POP2_BTN_A + 16] = 0x10, [POP2_BTN_A + 17] = 0x13, [POP2_BTN_A + 18] = 0x1F, [POP2_BTN_A + 19] = 0x14,
-	[POP2_BTN_A + 20] = 0x16, [POP2_BTN_A + 21] = 0x2F, [POP2_BTN_A + 22] = 0x11, [POP2_BTN_A + 23] = 0x2D,
-	[POP2_BTN_A + 24] = 0x15, [POP2_BTN_A + 25] = 0x2C,
+/* What each button is on the DOS keyboard: the key's scan code, the character
+ * it types (a letter follows Shift, as the keyboard's does), and the modifiers
+ * held with it. Shift and Ctrl are the keys themselves. */
+enum { MOD_SHIFT = 1, MOD_ALT = 2 };
+static const struct { uint8_t scan; char ascii; uint8_t mods; } k_keys[POP2_BTN_COUNT] = {
+	[POP2_BTN_UP] = { 0x48, 0, 0 }, [POP2_BTN_DOWN] = { 0x50, 0, 0 },
+	[POP2_BTN_LEFT] = { 0x4B, 0, 0 }, [POP2_BTN_RIGHT] = { 0x4D, 0, 0 },
+	[POP2_BTN_SHIFT] = { 0x2A, 0, 0 }, [POP2_BTN_CTRL] = { 0x1D, 0, 0 },
+	[POP2_BTN_PAUSE] = { 0x01, 0x1B, 0 }, [POP2_BTN_SHOW_TIME] = { 0x39, 0x20, 0 },
+	[POP2_BTN_RESTART_LEVEL] = { 0x1E, 'a', MOD_ALT }, [POP2_BTN_RESTART_GAME] = { 0x13, 'r', MOD_ALT },
+	[POP2_BTN_NEXT_LEVEL] = { 0x31, 'n', MOD_ALT }, [POP2_BTN_SOUND_ON_OFF] = { 0x1F, 's', MOD_ALT },
+	[POP2_BTN_MUSIC_ON_OFF] = { 0x32, 'm', MOD_ALT }, [POP2_BTN_VERSION] = { 0x2F, 'v', MOD_ALT },
+	[POP2_BTN_JOYSTICK_MODE] = { 0x24, 'j', MOD_ALT }, [POP2_BTN_KEYBOARD_MODE] = { 0x25, 'k', MOD_ALT },
+	[POP2_BTN_CHEAT_LOSE_HIT_POINT] = { 0x25, 'k', MOD_SHIFT }, [POP2_BTN_CHEAT_OPPONENT_HIT_POINT] = { 0x22, 'g', 0 },
+	[POP2_BTN_CHEAT_KILL_ROOM] = { 0x25, 'k', 0 }, [POP2_BTN_CHEAT_SPIRIT_LEAVES] = { 0x1F, 's', MOD_SHIFT },
+	[POP2_BTN_CHEAT_MORE_TIME] = { 0x4E, '+', 0 }, [POP2_BTN_CHEAT_LESS_TIME] = { 0x4A, '-', 0 },
+	[POP2_BTN_CHEAT_FLIP_SCREEN] = { 0x17, 'i', MOD_SHIFT }, [POP2_BTN_CHEAT_SHOW_ROOM] = { 0x13, 'r', MOD_SHIFT },
+	[POP2_BTN_CHEAT_ADD_MAX_HIT_POINT] = { 0x14, 't', MOD_SHIFT }, [POP2_BTN_CHEAT_FEATHER_FALL] = { 0x11, 'w', MOD_SHIFT },
+	[POP2_BTN_CHEAT_REVIVE] = { 0x13, 'r', 0 }, [POP2_BTN_CHEAT_DEMO_PLAYER] = { 0x3D, 0, 0 },
+	[POP2_BTN_CHEAT_GOD_MODE] = { 0x22, 'g', MOD_SHIFT }, [POP2_BTN_CHEAT_LEAVE_BODY] = { 0x23, 'h', 0 },
+	[POP2_BTN_CHEAT_LEAVE_BODY_FLAME] = { 0x30, 'b', 0 }, [POP2_BTN_CHEAT_SWORD] = { 0x2C, 'z', 0 },
+	[POP2_BTN_CHEAT_LOOK_LEFT] = { 0x4B, 0, MOD_ALT }, [POP2_BTN_CHEAT_LOOK_RIGHT] = { 0x4D, 0, MOD_ALT },
+	[POP2_BTN_CHEAT_LOOK_UP] = { 0x48, 0, MOD_ALT }, [POP2_BTN_CHEAT_LOOK_DOWN] = { 0x50, 0, MOD_ALT },
+	[POP2_BTN_CHEAT_TELEPORT] = { 0x14, 't', 0 }, [POP2_BTN_CHEAT_FLY] = { 0x1E, 'a', 0 },
 };
 
-static int ascii_of(int b)
+int pop2drv_button_active(int index)
 {
-	switch (b)
-	{
-	case POP2_BTN_ENTER: return 0x0D;
-	case POP2_BTN_SPACE: return 0x20;
-	case POP2_BTN_ESCAPE: return 0x1B;
-	case POP2_BTN_TAB: return 0x09;
-	case POP2_BTN_BACKSPACE: return 0x08;
-	default: break;
-	}
-	if (b >= POP2_BTN_A && b < POP2_BTN_A + 26)
-		return (g.want[POP2_BTN_SHIFT] ? 'A' : 'a') + (b - POP2_BTN_A);
-	return 0;   /* the arrows and the modifiers type their scan code (shell_input_key) */
+	if (index < 0 || index >= POP2_BTN_COUNT) return 0;
+	return index < POP2_BTN_CHEAT_FIRST || g.cheats;
 }
 
 void pop2drv_set_button(int index, int down)
 {
-	if (index >= 0 && index < POP2_BTN_COUNT) g.want[index] = down ? 1 : 0;
+	if (pop2drv_button_active(index)) g.want[index] = down ? 1 : 0;
 }
 
-/* A button held is a key held down, and one pressed since the last step is
- * that key going down - which is when DOS typed it. The modifiers go first,
- * so a letter pressed with Alt held is Alt+letter. There is no key repeat: a
- * movie that wants a key typed twice presses it twice. */
+static void key(int scan, int down, int ascii) { shell_input_key(&g.in, scan, down, down ? ascii : 0); }
+
+/* whether a modifier is still wanted by a held button */
+static int mod_held(int mod)
+{
+	if (mod == MOD_SHIFT && g.held[POP2_BTN_SHIFT]) return 1;
+	for (int b = 0; b < POP2_BTN_COUNT; b++)
+		if (g.held[b] && (k_keys[b].mods & mod)) return 1;
+	return 0;
+}
+
+/* whether another held button holds the same key (P1 Left and Look Left are
+ * both the left arrow): the keyboard has one of each */
+static int key_held_by_other(int self)
+{
+	for (int b = 0; b < POP2_BTN_COUNT; b++)
+		if (b != self && g.held[b] && k_keys[b].scan == k_keys[self].scan) return 1;
+	return 0;
+}
+
+/* The buttons that changed, as the keys the keyboard interrupt would have
+ * seen: Shift and Ctrl first, then the rest in the panel's order. A command's
+ * modifiers are real keys, put down before its key and lifted after unless
+ * another held button still holds them; a key two buttons share is down with
+ * the first and up with the last. A letter types its capital while Shift is
+ * down. */
 static void apply_buttons(void)
 {
-	static const int k_order_first[] = { POP2_BTN_SHIFT, POP2_BTN_CTRL, POP2_BTN_ALT };
 	for (int pass = 0; pass < 2; pass++)
 	{
 		for (int b = 0; b < POP2_BTN_COUNT; b++)
 		{
-			const int modifier = b == k_order_first[0] || b == k_order_first[1] || b == k_order_first[2];
+			const int modifier = b == POP2_BTN_SHIFT || b == POP2_BTN_CTRL;
 			if (modifier != (pass == 0) || g.want[b] == g.held[b]) continue;
-			shell_input_key(&g.in, k_scan[b], g.want[b], g.want[b] ? ascii_of(b) : 0);
+			const int down = g.want[b];
 			g.held[b] = g.want[b];
+			if (b == POP2_BTN_SHIFT)
+			{
+				if (down) g.action_pressed = 1;
+				if (down && !g.shift_down) { g.shift_down = 1; key(0x2A, 1, 0); }
+				if (!down && g.shift_down && !mod_held(MOD_SHIFT)) { g.shift_down = 0; key(0x2A, 0, 0); }
+				continue;
+			}
+			const int mods = k_keys[b].mods;
+			if (down)
+			{
+				if ((mods & MOD_SHIFT) && !g.shift_down) { g.shift_down = 1; key(0x2A, 1, 0); }
+				if ((mods & MOD_ALT) && !g.alt_down) { g.alt_down = 1; key(0x38, 1, 0); }
+				int ascii = k_keys[b].ascii;
+				if (ascii >= 'a' && ascii <= 'z' && g.shift_down) ascii -= 'a' - 'A';
+				if (!key_held_by_other(b)) key(k_keys[b].scan, 1, ascii);
+			}
+			else
+			{
+				if (!key_held_by_other(b)) key(k_keys[b].scan, 0, 0);
+				if (g.alt_down && !mod_held(MOD_ALT)) { g.alt_down = 0; key(0x38, 0, 0); }
+				if (g.shift_down && !mod_held(MOD_SHIFT)) { g.shift_down = 0; key(0x2A, 0, 0); }
+			}
 		}
 	}
 }
@@ -456,6 +512,7 @@ void pop2drv_frame(int render)
 		}
 	}
 	if (g.step_frames == 0) g.step_frames = 1;   /* the program has quit: a frame of nothing */
+	g.action_pressed = 0;   /* (a press is for the step it came in) */
 	gamestate_from_game();
 
 	if (render)

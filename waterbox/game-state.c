@@ -19,6 +19,8 @@
 #include "types.h"
 
 extern uint16_t minutes_left, clock_ticks, frame_delay;   /* game.c */
+extern uint16_t counter_5cec;                               /* glue.c: the next level */
+long pop2drv_hof(uint8_t *buf, long max);                   /* pop2-driver.c: PRINCE.HOF as written */
 
 /* ------------------------------------------------------ the Game State block */
 
@@ -34,10 +36,14 @@ typedef struct
 	uint16_t frame_delay;   /* +14 */
 	uint16_t mob_count;     /* +16 */
 	uint16_t trob_count;    /* +18 */
+	uint16_t next_level;    /* +20 the level the game goes to (the level ends when it is not this one) */
 } game_state;
 #pragma pack(pop)
 
 static game_state g_state;
+/* PRINCE.HOF: a count (u16), then six entries of a 27-byte name and the
+ * minutes left (u16) */
+static uint8_t g_hof[2 + 6 * 29];
 
 void gamestate_from_game(void)
 {
@@ -50,6 +56,10 @@ void gamestate_from_game(void)
 	g_state.frame_delay = frame_delay;
 	g_state.mob_count = mob_count;
 	g_state.trob_count = trob_count;
+	g_state.next_level = counter_5cec;
+	/* the hall of fame, as the game last wrote it */
+	memset(g_hof, 0, sizeof g_hof);
+	pop2drv_hof(g_hof, (long)sizeof g_hof);
 }
 
 /* only what a person may set goes back (the table marks the rest read-only) */
@@ -59,6 +69,7 @@ void gamestate_to_game(void)
 	clock_ticks = g_state.clock_ticks;
 	random_seed = g_state.random_seed;
 	frame_delay = g_state.frame_delay;
+	counter_5cec = g_state.next_level;
 }
 
 /* ------------------------------------------------------------------ domains */
@@ -70,7 +81,7 @@ typedef struct
 	int64_t size;
 } domain;
 
-static domain g_domains[6];
+static domain g_domains[7];
 static int g_ndomains;
 
 static void domains_init(void)
@@ -82,6 +93,7 @@ static void domains_init(void)
 	g_domains[g_ndomains++] = (domain){ "Level", (uint8_t *)&level, sizeof level };
 	g_domains[g_ndomains++] = (domain){ "Mobs", (uint8_t *)mobs, sizeof mobs };
 	g_domains[g_ndomains++] = (domain){ "Trobs", (uint8_t *)trobs, sizeof trobs };
+	g_domains[g_ndomains++] = (domain){ "Hall of Fame", g_hof, sizeof g_hof };
 }
 
 int pop2drv_domain_count(void)
@@ -108,7 +120,8 @@ int64_t pop2drv_domain_size(int i)
 	return i >= 0 && i < g_ndomains ? g_domains[i].size : 0;
 }
 
-int pop2drv_domain_writable(int i) { return i >= 0 && i < pop2drv_domain_count(); }
+/* all but the hall of fame, which is a copy of the file the game wrote */
+int pop2drv_domain_writable(int i) { return i >= 0 && i < pop2drv_domain_count() && strcmp(g_domains[i].name, "Hall of Fame") != 0; }
 
 /* -------------------------------------------------------------------- table */
 
@@ -183,6 +196,7 @@ static void table_init(void)
 	prop("Frame Delay", "Game State", 14, "u16", "Game", "\"description\": \"1/60 s between this tick and the next (5 walking, 6 fighting)\"");
 	prop("Mob Count", "Game State", 16, "u16", "Game", "\"writable\": false");
 	prop("Trob Count", "Game State", 18, "u16", "Game", "\"writable\": false");
+	prop("Next Level", "Game State", 20, "u16", "Game", "\"description\": \"The level the game goes to: the level ends when this is not the level being played (15 after level 14: the game is won)\"");
 
 	/* the prince, and the room's five character slots */
 	char_fields("Kid", "Kid", "Kid", "");
@@ -228,6 +242,10 @@ static void table_init(void)
 	prop("Trobs.Room", "Trobs", 1, "u8", "Trobs", "\"count\": 20, \"stride\": 4");
 	prop("Trobs.State", "Trobs", 2, "u8", "Trobs", "\"count\": 20, \"stride\": 4");
 	prop("Trobs.Tile", "Trobs", 3, "u8", "Trobs", "\"count\": 20, \"stride\": 4");
+	/* the hall of fame the game wrote */
+	prop("Hall of Fame.Count", "Hall of Fame", 0, "u16", "Hall of Fame", "\"writable\": false");
+	prop("Hall of Fame.Name", "Hall of Fame", 2, "string", "Hall of Fame", "\"length\": 27, \"encoding\": \"ascii\", \"count\": 6, \"stride\": 29, \"writable\": false");
+	prop("Hall of Fame.Minutes", "Hall of Fame", 29, "u16", "Hall of Fame", "\"count\": 6, \"stride\": 29, \"writable\": false, \"description\": \"The minutes that were left\"");
 	add("\n] }\n");
 }
 

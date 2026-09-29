@@ -102,3 +102,16 @@ ECL_EXPORT const char *GetGameProperties(void) { return pop2drv_game_properties(
 /* the machine's own clock: VGA frames (70.086 Hz), for harnesses that compare
  * machines */
 ECL_EXPORT uint64_t GetCycleCount(void) { return pop2drv_frames(); }
+
+/* what the MT-32 was sent: the gate's (the frontend asks for neither) */
+ECL_EXPORT uint64_t GetMidiHash(void)
+{
+	uint64_t n;
+	return pop2drv_midi(&n);
+}
+ECL_EXPORT uint64_t GetMidiBytes(void)
+{
+	uint64_t n;
+	pop2drv_midi(&n);
+	return n;
+}

@@ -14,7 +14,8 @@ can answer them; the second adds two weak hooks, for the hall of fame's name
 and for the action button choosing the copy protection's symbol; the third
 two more, so the core can count the time of play before the game's clock
 starts. Everything else is SDLPoP2's library compiled from source, with the
-core's own coroutines (musl has no ucontext) and its SDL frontend left out.
+core's own coroutines (musl has no ucontext) and its SDL frontend left out,
+and Munt's libmt32emu for the Roland MT-32.
 
 ## What it is
 
@@ -72,14 +73,28 @@ core's own coroutines (musl has no ucontext) and its SDL frontend left out.
   level 1. It changes nothing in the game. The table names the timer
   (`"gameTimer"`), so Chimera shows it as `IGT mm:ss.mmm` and saves it in the
   project at the end of the movie.
-- **Settings** that change play, recorded in the project: the random seed, the
-  cheats, the player name, where the in-game time starts, the intro and the story scenes, skipping the title, and
+- **Settings** that change play, recorded in the project: the music device,
+  the random seed, the cheats, the player name, where the in-game time starts,
+  the intro and the story scenes, skipping the title, and
   SDLPoP2's gameplay settings (the minutes, the hit points, the first level,
   the speeds). Defaults are the original game; with every one at its default
   the game runs on SDLPoP2's verified path, with no overrides installed.
 - **The machine is the original setup's**: the Sound Blaster Pro's digitized
   sounds and FM music, and CONFIG.DAT as the DOS setup writes it for them -
   the core's own, since each player's file says what their machine had.
+- **The Roland MT-32**, with the Music Device setting (`fm`, the default, or
+  `roland`): the setup's "Roland MT-32/LAPC-1/CM-32L" on an MPU-401, whose
+  driver SDLPoP2 rebuilds (MMPU401.DRV). Every byte it sends goes to Munt's
+  libmt32emu at its time in the sound's samples, and the MT-32's stereo is
+  mixed with the card's digitized sounds (the same on both sides). As in the
+  original, the start-up first plays the setup's PRESET40.DEF, a MIDI piece of
+  the MT-32's timbres, and waits for it: the title comes 655 frames (9.35 s)
+  later than on the FM chip, so a movie plays on the device it was made with.
+  The project brings PRESET40.DEF (SNDDRVRS on the CD) and an MT-32's two ROMs
+  (v1.07, the DOSBox-X core's firmware ids and hashes) as firmware when the
+  music is the MT-32's. What the game does is the FM setup's either way, the
+  story scenes' timing included. General MIDI, which SDLPoP2 also rebuilds, is
+  left out: Munt cannot play it.
 - **Files the game writes** (the hall of fame, the options) live in guest
   memory, so a savestate carries them. A project needs no file of its own: its
   file slot list is empty.
@@ -94,7 +109,8 @@ make -C waterbox -f guest.mk -j$(nproc)     # core.wbx
 ```
 
 miniBox is taken from `MB=`/`MINIBOX_DIR`, else `~/chimera/extern/chimera-common-minibox`;
-it must be built (`build/meson-linux`, which has the C guest toolchain).
+it must be built with its C++ guest toolchain (`build/meson-cpp`,
+`-Dguest_cpp=true`), since Munt is C++.
 
 ## Gate
 
@@ -105,10 +121,15 @@ it must be built (`build/meson-linux`, which has the C guest toolchain).
 Native == sandbox (picture, sound, every step's length, every memory domain
 and every step's properties), determinism, savestates before every step, a new
 host mid-run, turbo, the pictures, the step rates, the table, a poke, a freeze,
-the settings, the refusals and the package - each leg seen to fail on a break
-of its own.
+the settings, the refusals, the MT-32 (the bytes it is sent natively and
+sandboxed, its start-up, its stereo) and the package - each leg seen to fail on
+a break of its own. The MT-32's sound is held to the sandbox, not to the native
+reference: Munt builds its tables in floating point, and glibc's libm and
+musl's round differently; the bytes it is sent, with their times, are compared.
 
 The game is the user's: put Prince of Persia 2's files (the Collection CD's)
 in `tests/roms-local` (gitignored), or pass `-d`; a floppy PRINCE.EXE in
-`tests/roms-local/floppy` is used for its refusal. Without the files only the
-build, the declarations and the no-files refusal run.
+`tests/roms-local/floppy` is used for its refusal, and PRESET40.DEF with the
+MT-32's ROMs (MT32_CONTROL.ROM, MT32_PCM.ROM) in `tests/roms-local/roland` for
+the MT-32's legs. Without the files only the build, the declarations and the
+no-files refusal run.

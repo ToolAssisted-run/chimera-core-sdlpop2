@@ -1,3 +1,6 @@
 [submodule "extern/SDLPoP2"]
 	path = extern/SDLPoP2
 	url = https://github.com/ToolAssisted-run/SDLPoP2.git
+[submodule "extern/munt"]
+	path = extern/munt
+	url = https://github.com/munt/munt.git

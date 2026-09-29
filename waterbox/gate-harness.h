@@ -48,6 +48,8 @@ struct gate_core
 	uint64_t (*clock)(void);
 	const char *(*game_properties)(void);
 	int (*button_active)(int32_t index);   /* optional: IsButtonActive */
+	uint64_t (*midi_hash)(void);           /* optional: what the MT-32 was sent */
+	uint64_t (*midi_bytes)(void);
 };
 
 #define GATE_MAX_PRESS 64
@@ -411,6 +413,11 @@ static int gate_run(const struct gate_core *c, const struct gate_opts *o)
 	printf("stepsHash=%016llx\n", (unsigned long long)sh);
 	printf("lagFrames=%ld\n", lag);
 	printf("clock=%llu\n", (unsigned long long)c->clock());
+	if (c->midi_hash)
+	{
+		printf("midiBytes=%llu\n", (unsigned long long)c->midi_bytes());
+		printf("midiHash=%016llx\n", (unsigned long long)c->midi_hash());
+	}
 	for (int i = 0; i < c->domain_count(); i++)
 	{
 		uint64_t dh = gate_fnv(0, c->domain_ptr(i), (size_t)c->domain_size(i));

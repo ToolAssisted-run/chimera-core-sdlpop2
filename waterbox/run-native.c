@@ -33,6 +33,8 @@ extern int64_t GetMemoryDomainSize(int i);
 extern uint64_t GetCycleCount(void);
 extern const char *GetGameProperties(void);
 extern int IsButtonActive(int32_t index);
+extern uint64_t GetMidiHash(void);
+extern uint64_t GetMidiBytes(void);
 
 static void frame(void) { FrameAdvance(0); }
 static const uint32_t *video(int *w, int *h)
@@ -82,6 +84,8 @@ int main(int argc, char **argv)
 		.clock = GetCycleCount,
 		.game_properties = GetGameProperties,
 		.button_active = IsButtonActive,
+		.midi_hash = GetMidiHash,
+		.midi_bytes = GetMidiBytes,
 	};
 	return gate_run(&c, &o);
 }

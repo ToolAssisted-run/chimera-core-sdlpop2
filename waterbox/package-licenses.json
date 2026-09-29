@@ -2,7 +2,7 @@
   "package": "sdlpop2",
   "effectiveTerms": "GPL-3.0-or-later",
   "commercialUse": "allowed under the GPL",
-  "note": "The built core combines this repository's integration (GPL-3.0-or-later, as SDLPoP2) with SDLPoP2's reconstruction of Prince of Persia 2, compiled in from its upstream source, which bundles Nuked OPL3 (LGPL-2.1-or-later). The package carries none of Prince of Persia 2's data: the game's original files are the project's firmware, supplied by the user.",
+  "note": "The built core combines this repository's integration (GPL-3.0-or-later, as SDLPoP2) with SDLPoP2's reconstruction of Prince of Persia 2, compiled in from its upstream source, which bundles Nuked OPL3 (LGPL-2.1-or-later), and Munt's libmt32emu (LGPL-2.1-or-later), the Roland MT-32, compiled in from the submodule extern/munt. The package carries none of Prince of Persia 2's data nor any MT-32 ROM: the game's original files and the ROMs are the project's firmware, supplied by the user.",
   "components": [
     {
       "name": "chimera-core-sdlpop2 (integration)",
@@ -25,6 +25,14 @@
       "license": "LGPL-2.1-or-later",
       "url": "https://github.com/nukeykt/Nuked-OPL3",
       "file": "extern/SDLPoP2/source/audio_opl3.h"
+    },
+    {
+      "name": "Munt libmt32emu (the Roland MT-32)",
+      "license": "LGPL-2.1-or-later",
+      "url": "https://github.com/munt/munt",
+      "commit": "{submodule:extern/munt}",
+      "file": "extern/munt/mt32emu/COPYING.LESSER.txt",
+      "sourceUrl": "https://github.com/munt/munt/archive/{commit}.tar.gz"
     }
   ]
 }

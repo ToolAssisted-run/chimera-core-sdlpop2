@@ -71,6 +71,7 @@ static voidfn_i g_SetRenderingEnabled;
 static ptrfn g_GetGameProperties;
 typedef int (MB_GUEST_ABI *intfn_i32)(int32_t);
 static intfn_i32 g_IsButtonActive;
+static u64fn g_GetMidiHash, g_GetMidiBytes;
 static int g_rerecord;
 static int g_session;
 static long g_sessionAt = -1;
@@ -116,6 +117,8 @@ static int core_vsync_denominator(void) { return g_GetVsyncDenominator(); }
 static uint64_t core_clock(void) { return g_GetCycleCount(); }
 static const char *core_game_properties(void) { return (const char *)g_GetGameProperties(); }
 static int core_button_active(int32_t i) { return g_IsButtonActive(i); }
+static uint64_t core_midi_hash(void) { return g_GetMidiHash(); }
+static uint64_t core_midi_bytes(void) { return g_GetMidiBytes(); }
 
 static void core_pre_frame(long frame)
 {
@@ -219,6 +222,8 @@ static void resolve_exports(void)
 	g_GetCycleCount = (u64fn)proc(g_host, "GetCycleCount");
 	g_GetGameProperties = (ptrfn)proc(g_host, "GetGameProperties");
 	g_IsButtonActive = (intfn_i32)proc(g_host, "IsButtonActive");
+	g_GetMidiHash = (u64fn)proc(g_host, "GetMidiHash");
+	g_GetMidiBytes = (u64fn)proc(g_host, "GetMidiBytes");
 }
 
 int main(int argc, char **argv)
@@ -264,6 +269,8 @@ int main(int argc, char **argv)
 		.clock = core_clock,
 		.game_properties = core_game_properties,
 		.button_active = core_button_active,
+		.midi_hash = core_midi_hash,
+		.midi_bytes = core_midi_bytes,
 	};
 
 	/* Init runs before Seal - the loaded machine is the sealed baseline */

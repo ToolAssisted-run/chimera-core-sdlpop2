@@ -78,6 +78,8 @@ enum Pop2Button
  * (5 or 6 frames), every frame elsewhere. A step that reads nothing is cut at
  * a second of frames, which bounds its sound. */
 #define POP2_MAX_FRAMES_PER_STEP 70
+/* stereo (the MT-32's; the card's is the same on both sides), 44100 frames a
+ * second; the most a step hands out, in stereo frames */
 #define POP2_AUDIO_RATE 44100
 #define POP2_AUDIO_MAX_SAMPLES 44200
 
@@ -90,10 +92,14 @@ int pop2drv_button_active(int index);
 /* runs the program to the end of its next step */
 void pop2drv_frame(int render);
 const uint32_t *pop2drv_video(void);
-const int16_t *pop2drv_audio(int *samples);
+const int16_t *pop2drv_audio(int *samples);   /* stereo frames, left then right */
 int pop2drv_input_was_read(void);
 void pop2drv_vsync(int *num, int *den);
 uint64_t pop2drv_frames(void);
+/* the bytes the MT-32 was sent and a hash of them with their times (0 with the
+ * FM chip): for the gate, which cannot hold the MT-32's sound to the native
+ * reference */
+uint64_t pop2drv_midi(uint64_t *bytes);
 
 /* game-state.c: the property block, the raw domains, the table */
 int pop2drv_domain_count(void);

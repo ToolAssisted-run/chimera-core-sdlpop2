@@ -32,9 +32,14 @@ def ini_settings():
 
 
 def game_files():
+    """(name, size, sha1, roland): the files pop2-driver.c checks at Init - its
+    k_files, always, and its k_roland_files, when the music is the MT-32's."""
     text = open(os.path.join(HERE, "pop2-driver.c")).read()
-    return [(n, int(size), sha1) for n, size, sha1 in
-            re.findall(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF))", (\d+), "([0-9A-F]{40})" \}', text)]
+    split = text.index("k_roland_files[] = {")
+    out = []
+    for m in re.finditer(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF|ROM))", (\d+), "([0-9A-F]{40})" \}', text):
+        out.append((m.group(1), int(m.group(2)), m.group(3), m.start() > split))
+    return out
 
 
 def buttons():
@@ -75,24 +80,29 @@ WHAT = {
     "NISDIGI.DAT": "the story scenes' digitized sounds",
     "NISMIDI.DAT": "the story scenes' FM music",
     "NISIBM.DAT": "the story scenes' PC speaker sounds",
-    "PRESETS.DEF": "the FM instruments (the DOS setup copies the Sound Blaster Pro's here; on the install disks it is SNDDRVRS\\PRESET33.DEF)",
+    "PRESETS.DEF": "the FM instruments (the DOS setup copies the Sound Blaster Pro's here; on the install disks it is SNDDRVRS\\PRESET33.DEF). Needed whatever plays the music: the story scenes' timing is the FM driver's",
+    "PRESET40.DEF": "the Roland MT-32's timbres, a MIDI piece the start-up sends the MT-32 and waits for (the DOS setup copies it to PRESETS.DEF for that device; it is SNDDRVRS\\PRESET40.DEF on the CD and the install disks)",
+    "MT32_CONTROL.ROM": "no file of the game's: the Roland MT-32's control ROM, v1.07, dumped from a unit of the first generation",
+    "MT32_PCM.ROM": "no file of the game's: the Roland MT-32's PCM ROM, the one every MT-32 has",
 }
 
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "waterbox.config")
     firmware = []
-    for name, size, sha1 in game_files():
-        firmware.append({
-            "id": name,
-            "display": "Prince of Persia 2 1.0 " + name,
-            "description": "%s of Prince of Persia 2 1.0 (DOS), as the Prince of Persia Collection CD has it: %s. Yours to supply - the package carries none of the game's data.%s" % (
-                name, WHAT[name],
-                " The 1993 floppy release's PRINCE.EXE is another build of the program and is refused; its other files are the CD's." if name == "PRINCE.EXE" else ""),
-            "size": size,
-            "sha1": sha1,
-            "name": name,
-        })
+    for name, size, sha1, roland in game_files():
+        if name.endswith(".ROM"):
+            display = "Roland MT-32 %s ROM" % ("control" if "CONTROL" in name else "PCM")
+            desc = "%s: %s. Yours to supply, when the music is the Roland MT-32's - the package carries none of it." % (name, WHAT[name])
+        else:
+            display = "Prince of Persia 2 1.0 " + name
+            desc = "%s of Prince of Persia 2 1.0 (DOS), as the Prince of Persia Collection CD has it: %s. Yours to supply%s - the package carries none of the game's data.%s" % (
+                name, WHAT[name], ", when the music is the Roland MT-32's" if roland else "",
+                " The 1993 floppy release's PRINCE.EXE is another build of the program and is refused; its other files are the CD's." if name == "PRINCE.EXE" else "")
+        decl = {"id": name, "display": display, "description": desc, "size": size, "sha1": sha1, "name": name}
+        if roland:
+            decl["requiredWhen"] = {"setting": "music", "in": ["roland"]}
+        firmware.append(decl)
 
     cfg = {
         "coreName": "SDLPoP2",
@@ -115,10 +125,10 @@ def main():
             "getBgra": "GetVideoBgra",
         },
         "audio": {
-            "_comment": "SDLPoP2's sound (the Sound Blaster Pro's digitized sounds and its FM music, as the original setup plays them), rendered at 44100 Hz for exactly the time each step covers.",
+            "_comment": "SDLPoP2's sound (the Sound Blaster Pro's digitized sounds and its FM music, as the original setup plays them, or the music on a Roland MT-32), rendered at 44100 Hz for exactly the time each step covers: the card's mono on both sides, the MT-32's in stereo.",
             "rate": 44100,
             "samplesPerFrame": 44200,
-            "channels": 1,
+            "channels": 2,
             "get": "GetAudio",
         },
         "lag": {"inputWasRead": "InputWasRead"},
@@ -128,6 +138,14 @@ def main():
             "buttons": buttons(),
         },
         "settings": [
+            {
+                "name": "music",
+                "display": "Music Device",
+                "type": "enum",
+                "options": ["fm", "roland"],
+                "default": "fm",
+                "description": "What plays the music: the Sound Blaster Pro's FM chip (fm), as the original setup chose, or a Roland MT-32 on an MPU-401 (roland), the setup's \"Roland MT-32/LAPC-1/CM-32L\". The digitized sounds are the Sound Blaster's either way. The MT-32 needs the setup's PRESET40.DEF and an MT-32's two ROMs (v1.07), which the project brings as firmware; its game starts 9.35 s later, as the original did, while the start-up sends the MT-32 its timbres - so a movie plays on the music device it was made with.",
+            },
             {
                 "name": "random_seed",
                 "display": "Random seed",

@@ -11,6 +11,9 @@
 #   - export a property table that holds to chimera's docs/game-cores.md, read
 #     the same through it natively and sandboxed, obey a poke and hold a freeze
 #   - take its settings (a first level, the minutes, the hit points arrive)
+#   - play the music on a Roland MT-32 when asked: the MIDI bytes the same
+#     natively and sandboxed, the start-up waiting for the timbres as the
+#     original did, the MT-32 heard in stereo
 #   - refuse a missing game file, the floppy release's PRINCE.EXE and a
 #     damaged file
 #   - ask for its coroutines' stacks as stacks (MAP_STACK)
@@ -20,7 +23,9 @@
 # in the repository: the gate takes it from tests/roms-local (or -d <dir>).
 # Without it only the build, the declarations and the refusal of a project with
 # no files run. The floppy release's PRINCE.EXE, if tests/roms-local/floppy
-# holds one, is used for its refusal.
+# holds one, is used for its refusal; the MT-32's legs need
+# tests/roms-local/roland to hold the setup's PRESET40.DEF (SNDDRVRS on the CD)
+# and an MT-32's ROMs (MT32_CONTROL.ROM v1.07, MT32_PCM.ROM).
 #
 # Usage: ./run-gate.sh [-q] [-m <miniBox dir>] [-d <game dir>]
 #   -q skips the build (uses what is built)
@@ -57,11 +62,18 @@ report() {
 printf "%-30s %-6s %s\n" "Check" "Result" "Detail"
 printf "%-30s %-6s %s\n" "-----" "------" "------"
 
-digests() { grep -E '^(frames|vsync|videoHash|audioHash|stepsHash|lagFrames|clock|domain\[)'; }
+digests() { grep -E '^(frames|vsync|videoHash|audioHash|stepsHash|lagFrames|clock|midiBytes|midiHash|domain\[)'; }
 # what a turbo run can be held to: all but the whole-run picture hash, which a
 # run that skipped half its conversions cannot match - the half it drew is
 # compared instead
-turboDigests() { grep -E '^(frames|vsync|tailVideoHash|audioHash|stepsHash|lagFrames|clock|domain\[)'; }
+turboDigests() { grep -E '^(frames|vsync|tailVideoHash|audioHash|stepsHash|lagFrames|clock|midiBytes|midiHash|domain\[)'; }
+# the MT-32's sound is not held to the native reference: Munt builds its tables
+# with floating point, and glibc's libm and musl's round differently (the
+# DOSBox-X and OpenSamurai cores' open item). The bytes it is sent, with their
+# times, are; the sandbox, which is what Chimera runs, is held to itself
+noAudio() { grep -vE '^audioHash='; }
+roland=0
+[ -f "$data/roland/PRESET40.DEF" ] && [ -f "$data/roland/MT32_CONTROL.ROM" ] && [ -f "$data/roland/MT32_PCM.ROM" ] && roland=1
 # a program that stops stepping would spin forever; no run here takes minutes
 native() { timeout 300 "$nat/run-native" "$@"; }
 boxed() { timeout 300 "$nat/run-wbx" "$wbx" "$@"; }
@@ -170,6 +182,7 @@ tests=(
 	"play|400|{\"skip_title\":true}"
 	"commands|500|{\"skip_title\":true,\"first_level\":2}"
 	"cheats|400|{\"skip_title\":true,\"first_level\":2,\"cheats\":true}"
+	"roland|1400|{\"music\":\"roland\"}"
 )
 # the command keys, each once, on level 2 (where the prince is safe): the
 # messages, the pause (Show Time ends it), Restart Level after a run (the
@@ -185,8 +198,12 @@ test_args() {
 	case "$1" in
 		commands) args=("${commands_args[@]}" $(for s in 62 92 122 152 182 212; do echo --screenshot "$s:$work/cmd-$s.tga"; done)) ;;
 		cheats) args=("${cheats_args[@]}" $(for s in 72 82 112 122 132 142 232 242; do echo --screenshot "$s:$work/cheat-$s.tga"; done)) ;;
-		# the title sequence: the Broderbund card, the credits
-		title) args=(--screenshot "300:$work/title.tga" --screenshot "599:$work/credits.tga") ;;
+		# the title sequence: the Broderbund card, the credits; the first
+		# picture of the title's (step 9) and the one before it
+		title) args=(--screenshot "300:$work/title.tga" --screenshot "599:$work/credits.tga" --screenshot "8:$work/fm-8.tga"
+			--screenshot "9:$work/fm-9.tga") ;;
+		# the same title on the MT-32: 655 frames later
+		roland) args=(--screenshot "663:$work/mt-663.tga" --screenshot "664:$work/mt-664.tga" --screenshot "955:$work/mt-955.tga") ;;
 		# level 1 from its first tick: run right off the roof, die, a key
 		# restarts it
 		play) args=(--movie "$here/tests/play-movie.txt" --screenshot "30:$work/level1.tga") ;;
@@ -194,7 +211,12 @@ test_args() {
 }
 for t in "${tests[@]}"; do
 	IFS='|' read -r name frames settings <<< "$t"
+	if [ "$name" = roland ] && [ "$roland" = 0 ]; then
+		report "roland" SKIP "no PRESET40.DEF and MT-32 ROMs in $data/roland"; continue
+	fi
 	wd="$(workdir "$name" "$settings")"
+	[ "$name" = roland ] && cp "$data"/roland/* "$wd/"
+	cmpnat=cat; [ "$name" = roland ] && cmpnat=noAudio
 	test_args "$name"
 	args+=(--frames "$frames")
 	case "$name" in commands|cheats) trace=(--trace-props "$cprops" --trace) ;; *) trace=(--trace-props "$props" --trace) ;; esac
@@ -213,10 +235,12 @@ for t in "${tests[@]}"; do
 	else
 		report "$name:determinism" FAIL "$(diff "$work/box.txt" "$work/again.txt" | tr '\n' ' ' | head -c 110)"
 	fi
-	if cmp -s "$work/nat.txt" "$work/box.txt" && cmp -s "$work/$name.native.trace" "$work/$name.trace"; then
-		report "$name:equivalence" PASS "$frames steps, native == sandboxed ($(grep -c . "$work/box.txt") digests and every step's properties)"
+	$cmpnat < "$work/nat.txt" > "$work/natcmp.txt"
+	$cmpnat < "$work/box.txt" > "$work/boxcmp.txt"
+	if cmp -s "$work/natcmp.txt" "$work/boxcmp.txt" && cmp -s "$work/$name.native.trace" "$work/$name.trace"; then
+		report "$name:equivalence" PASS "$frames steps, native == sandboxed ($(grep -c . "$work/boxcmp.txt") digests and every step's properties$([ "$name" = roland ] && echo "; $(sed -n 's/^midiBytes=//p' "$work/box.txt") MIDI bytes and their times; the MT-32's sound held to the sandbox"))"
 	else
-		report "$name:equivalence" FAIL "$(diff "$work/nat.txt" "$work/box.txt" | tr '\n' ' ' | head -c 110)$(cmp -s "$work/$name.native.trace" "$work/$name.trace" || echo ' (property traces differ)')"; continue
+		report "$name:equivalence" FAIL "$(diff "$work/natcmp.txt" "$work/boxcmp.txt" | tr '\n' ' ' | head -c 110)$(cmp -s "$work/$name.native.trace" "$work/$name.trace" || echo ' (property traces differ)')"; continue
 	fi
 
 	if [ "$name" = play ]; then
@@ -334,6 +358,60 @@ if [ "$(at "$work/settings.trace" 19 1)" = "2" ] && [ "$(at "$work/settings.trac
 	report "settings:reach-the-game" PASS "first_level 2, start_minutes_left 5, start_hitp 5, no story scenes: level 2, 5 minutes, 5 hit points"
 else
 	report "settings:reach-the-game" FAIL "level $(at "$work/settings.trace" 19 1), minutes $(at "$work/settings.trace" 19 6), HP $(at "$work/settings.trace" 19 5)"
+fi
+
+# ------------------------------------------------------------------ 6a. the MT-32
+if [ "$roland" = 1 ]; then
+	# the start-up sends the MT-32 its timbres (PRESET40.DEF, a MIDI piece of
+	# sysex) and waits for the piece to end, as the original did (2D3E:03EE):
+	# its last bytes go in step 655 (19838 sent by 654), the whole of it being
+	# 19934, and nothing more in step 656; the title's music follows. The
+	# title comes exactly 655 frames later than on the FM chip - the same
+	# first picture, at step 664 instead of 9
+	up="$(for n in 654 655 656; do boxed "$work/roland" --frames $n 2>/dev/null | sed -n 's/^midiBytes=//p'; done | tr '\n' ' ')"
+	if [ "$up" = "19838 19934 19934 " ] && [ "$(pixels mt-664)" = "$(pixels fm-9)" ] && [ "$(pixels mt-663)" = "$(pixels fm-8)" ] &&
+	   [ "$(pixels fm-8)" != "$(pixels fm-9)" ] && [ "$(pixels mt-955)" = "1ae6ee2c6568dea1" ]; then
+		report "mt32:start-up" PASS "the timbres, 19934 bytes, sent in steps 1-655; the title drawn from step 664 (9 on the FM chip), Broderbund's card at 955"
+	else
+		report "mt32:start-up" FAIL "bytes at 654/655/656: $up; pictures 663 $(pixels mt-663) 664 $(pixels mt-664) (FM 8 $(pixels fm-8) 9 $(pixels fm-9)), 955 $(pixels mt-955)"
+	fi
+	# the MT-32 is heard: nothing while it takes its timbres (no sound is asked
+	# for), then the title's music in stereo (the card's is the same on both
+	# sides)
+	if python3 - "$wbx" "$work/roland" "$nat/run-wbx" > "$work/mt32.txt" 2>&1 <<'EOF'
+import struct, subprocess, sys
+wbx, wd, run = sys.argv[1:]
+subprocess.run([run, wbx, wd, "--frames", "1400", "--audio", wd + "/a.raw"], capture_output=True, check=True)
+d = open(wd + "/a.raw", "rb").read()
+s = struct.unpack("<%dh" % (len(d) // 2), d)
+upload = 655 * 44100 * 44900 // 3146875 * 2          # the stereo samples of the first 655 frames
+quiet = max(abs(x) for x in s[:upload])
+after = s[upload:]
+stereo = sum(1 for i in range(0, len(after), 2) if after[i] != after[i + 1])
+peak = max(abs(x) for x in after)
+assert quiet == 0 and stereo > 100000 and peak > 5000, (quiet, stereo, peak)
+print(f"silent through the timbres; then {stereo} of {len(after) // 2} sound frames with left and right apart, peak {peak}")
+EOF
+	then
+		report "mt32:heard" PASS "$(cat "$work/mt32.txt")"
+	else
+		report "mt32:heard" FAIL "$(tail -1 "$work/mt32.txt")"
+	fi
+	# the MT-32's files are asked for only with it, and each is named or refused
+	wd="$(workdir mt-missing '{"music":"roland"}')"; cp "$data"/roland/MT32_*.ROM "$wd/"
+	boxed "$wd" --frames 1 > "$work/mt1.txt" 2>/dev/null
+	wd="$(workdir mt-damaged '{"music":"roland"}')"; cp "$data"/roland/* "$wd/"
+	printf '\x55' | dd of="$wd/MT32_CONTROL.ROM" bs=1 seek=1000 conv=notrunc 2>/dev/null
+	boxed "$wd" --frames 1 > "$work/mt2.txt" 2>/dev/null
+	wd="$(workdir mt-bad '{"music":"mt32"}')"
+	boxed "$wd" --frames 1 > "$work/mt3.txt" 2>/dev/null
+	if grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt1.txt" &&
+	   grep -q "^loadError=MT32_CONTROL.ROM is not the Roland MT-32's control ROM, v1.07: 65536 bytes, SHA-1 " "$work/mt2.txt" &&
+	   grep -qx "loadError=the music setting is mt32; it is fm or roland" "$work/mt3.txt"; then
+		report "mt32:refusals" PASS "no PRESET40.DEF: named; a damaged control ROM: refused with both hashes; an unknown music setting: refused"
+	else
+		report "mt32:refusals" FAIL "$(grep -h loadError "$work"/mt[123].txt | tr '\n' ' ' | head -c 200)"
+	fi
 fi
 
 # ------------------------------------------------------------------ 6b. the keys

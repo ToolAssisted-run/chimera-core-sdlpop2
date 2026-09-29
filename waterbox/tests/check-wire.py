@@ -19,4 +19,4 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run([sys.executable, os.path.join(wb, "gen-config.py"), fresh], check=True)
     if json.load(open(fresh)) != cfg:
         sys.exit("waterbox.config is not what gen-config.py writes from settings.inc and the driver: regenerate it")
-print(f"{len(cfg['input']['buttons'])} buttons, {len(cfg['settings'])} settings and {len(cfg['firmware'])} game files agree")
+print(f"{len(cfg['input']['buttons'])} buttons, {len(cfg['settings'])} settings and {len(cfg['firmware'])} files agree")

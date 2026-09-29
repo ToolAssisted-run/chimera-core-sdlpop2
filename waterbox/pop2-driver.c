@@ -13,8 +13,11 @@
  * Nothing here reads the host: the random seed is a setting, the sound is
  * rendered for exactly the time each frame covers, CONFIG.DAT is the original
  * setup's and the files the game writes (saved games, the hall of fame, the
- * options) live in guest memory, so a savestate carries them.
+ * options) live in guest memory, so a savestate carries them. The music is the
+ * Sound Blaster Pro's FM chip, or a Roland MT-32 (Munt's libmt32emu, in guest
+ * memory too) fed the bytes SDLPoP2's MPU-401 driver sends it.
  */
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +28,10 @@
 
 #include "pop2-driver.h"
 #include "sha1.h"
+
+/* the MT-32: Munt's libmt32emu, through its C API */
+#define MT32EMU_API_TYPE 1
+#include <mt32emu.h>
 
 #include "audio.h"
 #include "loader.h"
@@ -76,6 +83,19 @@ static const pop2_file k_files[] = {
 };
 #define POP2_FILE_COUNT ((int)(sizeof k_files / sizeof k_files[0]))
 
+/* The Roland MT-32's, when the music is the MT-32's (the music setting): the
+ * setup's MIDI piece of the MT-32's timbres, which the DOS setup copies to
+ * PRESETS.DEF for that device (both releases' SNDDRVRS\PRESET40.DEF), and the
+ * MT-32's two ROMs - v1.07, the first generation (the DOSBox-X core's firmware
+ * ids and hashes). The FM instruments' PRESETS.DEF above stays: the story
+ * scenes' timing is the FM driver's whatever plays the music (nis.c). */
+static const pop2_file k_roland_files[] = {
+	{ "PRESET40.DEF", 20715, "951F5F9A340F41C128C232AD0CB31329A1722345" },
+	{ "MT32_CONTROL.ROM", 65536, "B083518FFFB7F66B03C23B7EB4F868E62DC5A987" },
+	{ "MT32_PCM.ROM", 524288, "F6B1EEBC4B2D200EC6D3D21D51325D5B48C60252" },
+};
+#define POP2_ROLAND_FILE_COUNT ((int)(sizeof k_roland_files / sizeof k_roland_files[0]))
+
 /* The 1993 floppy release's PRINCE.EXE: another build of the program (the
  * tables SDLPoP2 reads are elsewhere in it). Every other file of that release
  * is the CD's, byte for byte. */
@@ -99,19 +119,22 @@ static struct
 	int read;                      /* the step read the controls */
 	int tick;                      /* a game tick began in this frame */
 	int exited;                    /* the program has quit (Ctrl+Q, the copy protection) */
-	int audio_n;
-	int16_t audio[POP2_AUDIO_MAX_SAMPLES];
+	int roland;                    /* the music is the MT-32's */
+	uint64_t midi_bytes, midi_hash; /* what the MT-32 was sent, with its times (the gate's) */
+	int audio_n;                   /* stereo frames in audio */
+	int16_t audio[2 * POP2_AUDIO_MAX_SAMPLES];
 	uint32_t video[POP2_VIDEO_WIDTH * POP2_VIDEO_HEIGHT];
 } g;
 
 /* ------------------------------------------------------ what the host would be */
 
 /* CONFIG.DAT, as the DOS setup writes it for a keyboard and a Sound Blaster Pro
- * (digitized sounds on card 1, the FM music as MIDI type 0x21). The game reads
+ * (digitized sounds on card 1, the FM music as MIDI type 0x21; with the MT-32,
+ * MIDI type 0x28 on the MPU-401 at its default port and IRQ). The game reads
  * two things from it: sound on or off (+6), and whether a joystick question
- * gets its "unavailable" message (+8). Each player's own file says what their
- * machine had, so the core does not take it from the project: every project
- * plays the original setup. */
+ * gets its "unavailable" message (+8, only for type 0x20). Each player's own
+ * file says what their machine had, so the core does not take it from the
+ * project: every project plays the original setup. */
 static const uint8_t k_config[32] = {
 	0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x21, 0x00, 0xfe, 0xff, 0xfe, 0xff, 0x20, 0x02,
 	0xff, 0xff, 0x01, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -120,6 +143,7 @@ static const uint8_t k_config[32] = {
 int config_load(pop2_config *c)
 {
 	for (int i = 0; i < 16; i++) c->w[i] = (int16_t)(k_config[i * 2] | k_config[i * 2 + 1] << 8);
+	if (g.roland) c->w[4] = AUDIO_MIDI_MT32;
 	return 1;
 }
 
@@ -194,6 +218,74 @@ static void on_sound_start(int n) { audio_request((uint16_t)(10000 + n)); }
 static void on_sound_stop(int n) { audio_stop(n == -10000 ? 0 : (uint16_t)(10000 + n)); }
 static void on_sound_volume(int v) { audio_volume(v >= 15 ? 15 : v); }   /* the game's 15 = on, 0 = off (Alt+S) */
 
+/* the MT-32, when the music is the MT-32's (below) */
+static mt32emu_context g_mt32;
+
+/* SDLPoP2's MPU-401 driver hands every byte it sends the MT-32 over with its
+ * time in the sound's samples since the init; the MT-32 takes each at that
+ * time and plays it into the samples the frame renders next (one_frame) */
+static mt32emu_report_handler_version MT32EMU_C_CALL mt32_version(mt32emu_report_handler_i i)
+{
+	(void)i;
+	return MT32EMU_REPORT_HANDLER_VERSION_0;
+}
+/* what Munt would print (its LCD's messages, the sequencer's sysex for the FM
+ * device, which the original also hands the MPU-401 and the MT-32 ignores): to
+ * nobody - the guest's console is the frontend's */
+static void MT32EMU_C_CALL mt32_debug(void *instance, const char *fmt, va_list list) { (void)instance; (void)fmt; (void)list; }
+static void MT32EMU_C_CALL mt32_lcd(void *instance, const char *message) { (void)instance; (void)message; }
+static const mt32emu_report_handler_i_v0 k_mt32_reports = { .getVersionID = mt32_version, .printDebug = mt32_debug, .showLCDMessage = mt32_lcd };
+
+static long read_all(const char *name, uint8_t **data)
+{
+	FILE *f = fopen(name, "rb");
+	if (!f) return -1;
+	fseek(f, 0, SEEK_END);
+	const long n = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	*data = n > 0 ? malloc((size_t)n) : NULL;
+	const long got = *data ? (long)fread(*data, 1, (size_t)n, f) : -1;
+	fclose(f);
+	return got == n ? n : -1;
+}
+
+static int mt32_open(char *err, int errsize)
+{
+	mt32emu_report_handler_i reports = { &k_mt32_reports };
+	g_mt32 = mt32emu_create_context(reports, NULL);
+	static const char *const roms[] = { "MT32_CONTROL.ROM", "MT32_PCM.ROM" };
+	for (int i = 0; i < 2; i++)
+	{
+		uint8_t *data;
+		const long n = read_all(roms[i], &data);
+		/* Munt keeps the data as given, it does not copy it: the buffers live
+		 * as long as the machine */
+		if (n < 0 || mt32emu_add_rom_data(g_mt32, data, (size_t)n, NULL) < 0)
+		{
+			snprintf(err, (size_t)errsize, "the MT-32 did not take %s", roms[i]);
+			return 0;
+		}
+	}
+	mt32emu_set_stereo_output_samplerate(g_mt32, POP2_AUDIO_RATE);
+	if (mt32emu_open_synth(g_mt32) != MT32EMU_RC_OK)
+	{
+		snprintf(err, (size_t)errsize, "the MT-32 could not start");
+		return 0;
+	}
+	return 1;
+}
+
+static void on_midi(uint8_t byte, uint64_t sample)
+{
+	/* FNV-1a over each byte and its time: what the gate holds natively and
+	 * sandboxed, since the MT-32's own sound differs by its libm */
+	const uint8_t rec[9] = { byte, (uint8_t)sample, (uint8_t)(sample >> 8), (uint8_t)(sample >> 16), (uint8_t)(sample >> 24),
+		(uint8_t)(sample >> 32), (uint8_t)(sample >> 40), (uint8_t)(sample >> 48), (uint8_t)(sample >> 56) };
+	for (int i = 0; i < 9; i++) g.midi_hash = (g.midi_hash ^ rec[i]) * 0x100000001B3ull;
+	g.midi_bytes++;
+	mt32emu_parse_stream_at(g_mt32, &byte, 1, mt32emu_convert_output_to_synth_timestamp(g_mt32, (mt32emu_bit32u)sample));
+}
+
 /* ----------------------------------------------------------------- settings */
 
 typedef struct
@@ -260,15 +352,16 @@ static int apply_settings(char *err, int errsize)
 static void on_tick(void) { g.tick = 1; }
 extern void (*shell_tick_hook)(void);   /* source/shell.c: where each game tick begins */
 
-static int check_files(char *err, int errsize)
+static int check_files(const pop2_file *files, int count, char *err, int errsize)
 {
-	for (int i = 0; i < POP2_FILE_COUNT; i++)
+	for (int i = 0; i < count; i++)
 	{
-		const pop2_file *f = &k_files[i];
+		const pop2_file *f = &files[i];
 		FILE *fp = fopen(f->name, "rb");
 		if (!fp)
 		{
-			snprintf(err, (size_t)errsize, "Prince of Persia 2 needs %s - add it as the project's firmware.", f->name);
+			snprintf(err, (size_t)errsize, "Prince of Persia 2 needs %s%s - add it as the project's firmware.", f->name,
+				files == k_roland_files ? " for the Roland MT-32's music" : "");
 			return 0;
 		}
 		char hex[41];
@@ -287,6 +380,12 @@ static int check_files(char *err, int errsize)
 					"This PRINCE.EXE is the 1993 floppy release's. SDLPoP2 is rebuilt from the Prince of Persia "
 					"Collection CD's (1.0, %ld bytes), which is another build of the program; every other file of the "
 					"floppy release is the same as the CD's.", f->size);
+			else if (files == k_roland_files)
+				snprintf(err, (size_t)errsize,
+					"%s is not the Roland MT-32's %s: %ld bytes, SHA-1 %s; that is %ld bytes, SHA-1 %s.", f->name,
+					!strcmp(f->name, "PRESET40.DEF") ? "timbres as Prince of Persia 2's setup has them (SNDDRVRS\\PRESET40.DEF)"
+					: !strcmp(f->name, "MT32_CONTROL.ROM") ? "control ROM, v1.07" : "PCM ROM",
+					size, hex, f->size, f->sha1);
 			else
 				snprintf(err, (size_t)errsize,
 					"%s is not Prince of Persia 2 1.0's, as the Prince of Persia Collection CD has it: %ld bytes, "
@@ -323,7 +422,19 @@ int pop2drv_init(char *err, int errsize)
 {
 	memset(&g, 0, sizeof g);
 	memset(g_files, 0, sizeof g_files);
-	if (!check_files(err, errsize)) return 0;
+	/* the music: the Sound Blaster Pro's FM chip, as the original setup, or a
+	 * Roland MT-32 on an MPU-401 */
+	g.midi_hash = 0xCBF29CE484222325ull;
+	char music[16];
+	if (wbx_setting_str("music", music, sizeof music) < 0) strcpy(music, "fm");
+	if (!strcmp(music, "roland")) g.roland = 1;
+	else if (strcmp(music, "fm"))
+	{
+		snprintf(err, (size_t)errsize, "the music setting is %s; it is fm or roland", music);
+		return 0;
+	}
+	if (!check_files(k_files, POP2_FILE_COUNT, err, errsize)) return 0;
+	if (g.roland && !check_files(k_roland_files, POP2_ROLAND_FILE_COUNT, err, errsize)) return 0;
 	if (apply_settings(err, errsize) < 0) return 0;
 	/* the name a won game enters in the hall of fame: the game takes the
 	 * printable characters, and wants at least one */
@@ -346,15 +457,24 @@ int pop2drv_init(char *err, int errsize)
 	const uint32_t seed = (uint32_t)(wbx_setting_long("random_seed", 0) & 0xFFFFFFFFl);
 
 	/* the original setup's sound: the digitized sounds and the FM music, as the
-	 * DOS program played them on a Sound Blaster Pro */
-	if (!audio_init(".", SOUND_DEVICE_FM_DIGITAL))
+	 * DOS program played them on a Sound Blaster Pro - or the music on an
+	 * MT-32, whose timbres the start-up sends it first and waits for (9.35 s),
+	 * as the original did (shell_sound_setup_hook) */
+	if (g.roland && !mt32_open(err, errsize)) return 0;
+	audio_midi_out = g.roland ? on_midi : NULL;
+	if (!audio_init_midi(".", SOUND_DEVICE_FM_DIGITAL, g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM, g.roland ? "PRESET40.DEF" : NULL))
 	{
 		snprintf(err, (size_t)errsize, "SDLPoP2 could not load the sound files.");
 		return 0;
 	}
-	audio_add_file("./NISDIGI.DAT");
-	audio_add_file("./NISMIDI.DAT");
+	if (g.roland && !audio_setup_playing())
+	{
+		snprintf(err, (size_t)errsize, "SDLPoP2 did not take PRESET40.DEF as the MT-32's timbres.");
+		return 0;
+	}
+	audio_add_scene_files(".");
 	audio_volume(15);
+	shell_sound_setup_hook = audio_setup_playing;
 	sound_start_hook = on_sound_start;
 	sound_stop_hook = on_sound_stop;
 	platform_sound_volume_hook = on_sound_volume;
@@ -479,20 +599,28 @@ static void one_frame(void)
 	if (shell_step(&g.in) == SHELL_EXIT) g.exited = 1;
 	g.in.ntyped = 0;   /* (what was typed has been handed over) */
 	g.frames++;
-	/* the sound of exactly the time this frame covers, in whole samples */
+	/* the sound of exactly the time this frame covers, in whole samples: the
+	 * card's mono on both sides, and the MT-32's stereo added to it (the MIDI
+	 * bytes of the frame are in by now: the program's own, sent before the
+	 * frame's sound, and the music timer's, sent while it is rendered) */
 	const uint64_t upto = g.frames * (uint64_t)POP2_AUDIO_RATE * POP2_FRAME_RATE_DEN / POP2_FRAME_RATE_NUM;
-	int n = (int)(upto - g.samples);
+	const int n = (int)(upto - g.samples);
 	g.samples = upto;
-	if (g.audio_n + n <= POP2_AUDIO_MAX_SAMPLES)
+	static int16_t mono[1024], mt[2 * 1024], spill[2 * 1024];
+	audio_render(mono, n, POP2_AUDIO_RATE);
+	/* past the step's room it is played, not handed out */
+	int16_t *out = g.audio_n + n <= POP2_AUDIO_MAX_SAMPLES ? g.audio + 2 * g.audio_n : spill;
+	for (int k = 0; k < n; k++) out[2 * k] = out[2 * k + 1] = mono[k];
+	if (g_mt32)
 	{
-		audio_render(g.audio + g.audio_n, n, POP2_AUDIO_RATE);
-		g.audio_n += n;
+		mt32emu_render_bit16s(g_mt32, mt, (mt32emu_bit32u)n);
+		for (int k = 0; k < 2 * n; k++)
+		{
+			const int v = out[k] + mt[k];
+			out[k] = (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : v);
+		}
 	}
-	else
-	{
-		static int16_t spill[2048];
-		audio_render(spill, n, POP2_AUDIO_RATE);   /* played, not handed out */
-	}
+	if (out != spill) g.audio_n += n;
 }
 
 void pop2drv_frame(int render)
@@ -548,3 +676,9 @@ void pop2drv_vsync(int *num, int *den)
 }
 
 uint64_t pop2drv_frames(void) { return g.frames; }
+
+uint64_t pop2drv_midi(uint64_t *bytes)
+{
+	*bytes = g.midi_bytes;
+	return g.midi_hash;
+}

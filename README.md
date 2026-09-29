@@ -22,12 +22,13 @@ and Munt's libmt32emu for the Roland MT-32.
 - **Prince of Persia 2 1.0 as the Prince of Persia Collection CD has it**,
   from the user's own files - the release SDLPoP2 is rebuilt from, whose
   PRINCE.EXE it reads tables out of. The package carries none of the game's
-  data: the 26 files are the project's **firmware**, checked file by file
-  against that release's SHA-1 at Init. A missing one is named ("Prince of
-  Persia 2 needs KID.DAT - add it as the project's firmware"); a damaged one is
-  refused with both hashes. The 1993 floppy release's PRINCE.EXE is another
-  build of the program and is refused by name - every other file of that
-  release is the CD's, byte for byte.
+  data: the 26 files are the project's **firmware**. A missing one is named
+  ("Prince of Persia 2 needs KID.DAT - add it as the project's firmware"). A
+  file of your own - a modified PRINCE.DAT, say - may take an original's place:
+  the core takes it as it is, and the project pins its hash. The 1993 floppy
+  release's PRINCE.EXE is another build of the program, whose tables SDLPoP2
+  would read from the wrong places, and is refused by name - every other file
+  of that release is the CD's, byte for byte.
 - **A frame is one step of the game**: while playing, the VGA frames
   (70.086 Hz) up to the next game tick, where the controls are read - 5 or 6
   of them for the game's 1/12 s tick, 7 or 8 when a tick is late; on the title,
@@ -129,9 +130,9 @@ it must be built with its C++ guest toolchain (`build/meson-cpp`,
 Native == sandbox (picture, sound, every step's length, every memory domain
 and every step's properties), determinism, savestates before every step, a new
 host mid-run, turbo, the pictures, the step rates, the table, a poke, a freeze,
-the settings, the refusals, the MT-32 (the bytes it is sent natively and
-sandboxed, its start-up, its stereo) and the package - each leg seen to fail on
-a break of its own. The MT-32's sound is held to the sandbox, not to the native
+the settings, the refusals, a file of the project's own, the MT-32 (the bytes
+it is sent natively and sandboxed, its start-up, its stereo), the PC speaker
+and the package - each leg seen to fail on a break of its own. The MT-32's sound is held to the sandbox, not to the native
 reference: Munt builds its tables in floating point, and glibc's libm and
 musl's round differently; the bytes it is sent, with their times, are compared.
 

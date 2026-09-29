@@ -93,10 +93,10 @@ def main():
     for name, size, sha1, roland in game_files():
         if name.endswith(".ROM"):
             display = "Roland MT-32 %s ROM" % ("control" if "CONTROL" in name else "PCM")
-            desc = "%s: %s. Yours to supply, when the music is the Roland MT-32's - the package carries none of it." % (name, WHAT[name])
+            desc = "%s: %s. Yours to supply, when the music is the Roland MT-32's - the package carries none of it. Another MT-32 ROM Munt knows may take its place (the project pins its hash)." % (name, WHAT[name])
         else:
             display = "Prince of Persia 2 1.0 " + name
-            desc = "%s of Prince of Persia 2 1.0 (DOS), as the Prince of Persia Collection CD has it: %s. Yours to supply%s - the package carries none of the game's data.%s" % (
+            desc = "%s of Prince of Persia 2 1.0 (DOS), as the Prince of Persia Collection CD has it: %s. Yours to supply%s - the package carries none of the game's data. A file of your own (a modified one) may take its place: the project pins its hash.%s" % (
                 name, WHAT[name], ", when the music is the Roland MT-32's" if roland else "",
                 " The 1993 floppy release's PRINCE.EXE is another build of the program and is refused; its other files are the CD's." if name == "PRINCE.EXE" else "")
         decl = {"id": name, "display": display, "description": desc, "size": size, "sha1": sha1, "name": name}

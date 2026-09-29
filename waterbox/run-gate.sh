@@ -15,8 +15,8 @@
 #     natively and sandboxed, the start-up waiting for the timbres as the
 #     original did, the MT-32 heard in stereo; or all the sound on the PC
 #     speaker, the game the same
-#   - refuse a missing game file, the floppy release's PRINCE.EXE and a
-#     damaged file
+#   - refuse a missing game file and the floppy release's PRINCE.EXE, and
+#     take a file of the project's own in the original's place
 #   - ask for its coroutines' stacks as stacks (MAP_STACK)
 #   - package deterministically
 #
@@ -170,12 +170,19 @@ else
 	report "refuse:floppy-exe" SKIP "no floppy PRINCE.EXE in $data/floppy"
 fi
 
-wd="$(workdir refuse-damaged '{}')"; printf '\x55' | dd of="$wd/SEQUENCE.DAT" bs=1 seek=1000 conv=notrunc 2>/dev/null
-boxed "$wd" --frames 1 > "$work/r3.txt" 2>/dev/null
-if grep -q "^loadError=SEQUENCE.DAT is not Prince of Persia 2 1.0's, as the Prince of Persia Collection CD has it: 11980 bytes, SHA-1 " "$work/r3.txt"; then
-	report "refuse:damaged-file" PASS "one byte changed in SEQUENCE.DAT: refused with both hashes"
+# a file of the project's own is taken in the original's place (Chimera pins
+# its hash; user-decided 2026-09-29): a PRINCE.DAT with 64 bytes of level 1's
+# data changed plays, and level 1 is not the original's
+wd="$(workdir custom-orig '{"skip_title":true}')"
+orig="$(boxed "$wd" --frames 30 2>/dev/null | grep -E '^(loadError|frames|domain\[Level\])')"
+wd="$(workdir custom-file '{"skip_title":true}')"
+python3 -c "import sys; p=sys.argv[1]; d=bytearray(open(p,'rb').read()); d[45056:45120]=bytes(b ^ 0x55 for b in d[45056:45120]); open(p,'wb').write(d)" "$wd/PRINCE.DAT"
+custom="$(boxed "$wd" --frames 30 2>/dev/null | grep -E '^(loadError|frames|domain\[Level\])')"
+if ! echo "$custom" | grep -q loadError && echo "$custom" | grep -qx 'frames=30' &&
+   [ "$(echo "$custom" | grep Level)" != "$(echo "$orig" | grep Level)" ] && ! echo "$orig" | grep -q loadError; then
+	report "firmware:custom" PASS "a PRINCE.DAT of the project's own (64 bytes of level 1 changed) is taken, and level 1 is its"
 else
-	report "refuse:damaged-file" FAIL "$(grep -m1 . "$work/r3.txt")"
+	report "firmware:custom" FAIL "custom [$(echo $custom)] original [$(echo $orig)]"
 fi
 
 # ------------------------------------------------------------------ 5. the runs
@@ -430,9 +437,9 @@ EOF
 	wd="$(workdir mt-bad '{"music":"mt32"}')"
 	boxed "$wd" --frames 1 > "$work/mt3.txt" 2>/dev/null
 	if grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt1.txt" &&
-	   grep -q "^loadError=MT32_CONTROL.ROM is not the Roland MT-32's control ROM, v1.07: 65536 bytes, SHA-1 " "$work/mt2.txt" &&
+	   grep -qx "loadError=the MT-32 did not take MT32_CONTROL.ROM" "$work/mt2.txt" &&
 	   grep -qx "loadError=the music setting is mt32; it is roland, fm or speaker" "$work/mt3.txt"; then
-		report "mt32:refusals" PASS "no PRESET40.DEF: named; a damaged control ROM: refused with both hashes; an unknown music setting: refused"
+		report "mt32:refusals" PASS "no PRESET40.DEF: named; a damaged control ROM: Munt does not take it; an unknown music setting: refused"
 	else
 		report "mt32:refusals" FAIL "$(grep -h loadError "$work"/mt[123].txt | tr '\n' ' ' | head -c 200)"
 	fi

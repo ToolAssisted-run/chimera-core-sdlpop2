@@ -53,7 +53,9 @@ typedef struct
  * release SDLPoP2 is rebuilt from, whose PRINCE.EXE it reads tables out of.
  * The same list as SDLPoP2's own frontend checks (sdl/main.c game_files), less
  * CONFIG.DAT (the core's own, below), plus PRESETS.DEF (the FM instruments,
- * which audio.c and nis.c read). */
+ * which audio.c and nis.c read). The hashes are the originals', which the
+ * declarations give the frontend to find them by; a file of the project's own
+ * is taken in their place (check_files). */
 static const pop2_file k_files[] = {
 	{ "PRINCE.EXE", 259583, "835FD96C57CD4AC729ED0B5630623552987E0AC4" },
 	{ "SEQUENCE.DAT", 11980, "496AF1AF9AED022A0586734470268E3498D85FDA" },
@@ -354,6 +356,12 @@ static int apply_settings(char *err, int errsize)
 static void on_tick(void) { g.tick = 1; }
 extern void (*shell_tick_hook)(void);   /* source/shell.c: where each game tick begins */
 
+/* Every file is there. What is in it is the project's: a file of its own
+ * (a modified one, another dump) is taken as it is, and Chimera pins ITS hash
+ * in the project (user-decided, 2026-09-29: a game core's firmware may be
+ * custom). The one refusal left is a build known not to work: the floppy
+ * release's PRINCE.EXE, whose tables SDLPoP2 would read from the wrong
+ * places. */
 static int check_files(const pop2_file *files, int count, char *err, int errsize)
 {
 	for (int i = 0; i < count; i++)
@@ -366,6 +374,11 @@ static int check_files(const pop2_file *files, int count, char *err, int errsize
 				files == k_roland_files ? " for the Roland MT-32's music" : "");
 			return 0;
 		}
+		if (strcmp(f->name, "PRINCE.EXE"))
+		{
+			fclose(fp);
+			continue;
+		}
 		char hex[41];
 		long size = 0;
 		int ok = sha1_file(fp, hex, &size);
@@ -375,23 +388,12 @@ static int check_files(const pop2_file *files, int count, char *err, int errsize
 			snprintf(err, (size_t)errsize, "%s could not be read.", f->name);
 			return 0;
 		}
-		if (strcmp(hex, f->sha1))
+		if (!strcmp(hex, FLOPPY_PRINCE_EXE_SHA1))
 		{
-			if (!strcmp(f->name, "PRINCE.EXE") && !strcmp(hex, FLOPPY_PRINCE_EXE_SHA1))
-				snprintf(err, (size_t)errsize,
-					"This PRINCE.EXE is the 1993 floppy release's. SDLPoP2 is rebuilt from the Prince of Persia "
-					"Collection CD's (1.0, %ld bytes), which is another build of the program; every other file of the "
-					"floppy release is the same as the CD's.", f->size);
-			else if (files == k_roland_files)
-				snprintf(err, (size_t)errsize,
-					"%s is not the Roland MT-32's %s: %ld bytes, SHA-1 %s; that is %ld bytes, SHA-1 %s.", f->name,
-					!strcmp(f->name, "PRESET40.DEF") ? "timbres as Prince of Persia 2's setup has them (SNDDRVRS\\PRESET40.DEF)"
-					: !strcmp(f->name, "MT32_CONTROL.ROM") ? "control ROM, v1.07" : "PCM ROM",
-					size, hex, f->size, f->sha1);
-			else
-				snprintf(err, (size_t)errsize,
-					"%s is not Prince of Persia 2 1.0's, as the Prince of Persia Collection CD has it: %ld bytes, "
-					"SHA-1 %s; that release's is %ld bytes, SHA-1 %s.", f->name, size, hex, f->size, f->sha1);
+			snprintf(err, (size_t)errsize,
+				"This PRINCE.EXE is the 1993 floppy release's. SDLPoP2 is rebuilt from the Prince of Persia "
+				"Collection CD's (1.0, %ld bytes), which is another build of the program: SDLPoP2 reads its tables "
+				"at the CD build's places. Every other file of the floppy release is the same as the CD's.", f->size);
 			return 0;
 		}
 	}

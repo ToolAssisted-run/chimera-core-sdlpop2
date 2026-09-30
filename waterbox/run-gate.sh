@@ -18,8 +18,9 @@
 #   - refuse a missing game file and another release's files, and take a
 #     file of the project's own in the original's place
 #   - play the three DOS releases (the version setting): 1.0 and the initial
-#     release the same natively and sandboxed, the initial release its own
-#     game, a cracked PRINCE.EXE the same as the original
+#     release the same natively and sandboxed, each its own game (1.0's on
+#     level 10: waterbox/tests/v10-separator.txt), a cracked PRINCE.EXE the
+#     same as the original
 #   - ask for its coroutines' stacks as stacks (MAP_STACK)
 #   - package deterministically
 #
@@ -214,6 +215,22 @@ if [ -f "$data/ir/PRINCE.EXE" ] && [ -f "$data/v10/PRINCE.EXE" ]; then
 		report "version:cracked-exe" PASS "a cracked PRINCE.EXE plays the route as the original does (1.0 and the initial release)"
 	else
 		report "version:cracked-exe" FAIL "build/gate/rel-*-crk.txt differs from rel-*-box.txt"
+	fi
+	# 1.0 is its own game too, which a short route rarely shows: its second
+	# guard in approach keeps clear of the first (366C:08F0) where 1.1's
+	# advances. Level 10 from the copy protection (seed 0: two Rights and
+	# Shift), the seed set to 0x3528860F as its first tick begins, then the
+	# separator's 124 ticks: at tick 124 1.1's guard stands at x 431 (frame
+	# 164) and 1.0's holds at 445 (frame 186) - SDLPoP2's own oracle numbers
+	sep() { boxed "$1" --frames 340 --press 99:R:1 --press 103:R:1 --press 150:S:1 --poke "214:Random Seed=891848207" \
+		--movie "$here/tests/v10-separator.txt" --movie-at 214 --trace "$work/$2.trace" --trace-props "Tick,Chars.X[1],Chars.Frame[1]" > /dev/null 2>&1
+		awk '$4 == 123 || $4 == 124 { printf "%s:%s/%s ", $4, $5, $6 }' "$work/$2.trace"; }
+	s11="$(sep "$(workdir sep-11 '{"skip_title":true,"first_level":10}')" sep-11)"
+	s10="$(sep "$(relwd sep-10 '{"version":"1.0","skip_title":true,"first_level":10}' "$data/v10")" sep-10)"
+	if [ "$s11" = "123:445/158 124:431/164 " ] && [ "$s10" = "123:445/158 124:445/186 " ]; then
+		report "version:1.0-plays-its-own" PASS "level 10, tick 124: 1.1's second guard advances to x 431, 1.0's holds at 445 (the same until then)"
+	else
+		report "version:1.0-plays-its-own" FAIL "1.1 [$s11] (want 123:445/158 124:431/164), 1.0 [$s10] (want 123:445/158 124:445/186)"
 	fi
 	# the initial release's cheat word is its own (makinit, PRINCE.DAT's TXT4
 	# 10): with the cheats on, More Time on step 30 adds a minute

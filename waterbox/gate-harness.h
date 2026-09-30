@@ -110,8 +110,6 @@ static int gate_key_index(char c)
 	case 'u': return POP2_BTN_SOUND_ON_OFF;
 	case 'm': return POP2_BTN_MUSIC_ON_OFF;
 	case 'v': return POP2_BTN_VERSION;
-	case 'j': return POP2_BTN_JOYSTICK_MODE;
-	case 'k': return POP2_BTN_KEYBOARD_MODE;
 	/* the cheats */
 	case '1': return POP2_BTN_CHEAT_LOSE_HIT_POINT;
 	case '2': return POP2_BTN_CHEAT_OPPONENT_HIT_POINT;

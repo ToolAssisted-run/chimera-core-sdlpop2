@@ -36,8 +36,6 @@ enum Pop2Button
 	POP2_BTN_SOUND_ON_OFF,   /* Alt+S */
 	POP2_BTN_MUSIC_ON_OFF,   /* Alt+M */
 	POP2_BTN_VERSION,        /* Alt+V */
-	POP2_BTN_JOYSTICK_MODE,  /* Alt+J */
-	POP2_BTN_KEYBOARD_MODE,  /* Alt+K */
 	/* the cheats: the DOS game's */
 	POP2_BTN_CHEAT_FIRST,
 	POP2_BTN_CHEAT_LOSE_HIT_POINT = POP2_BTN_CHEAT_FIRST, /* Shift+K */

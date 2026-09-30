@@ -201,7 +201,7 @@ tests=(
 # the command keys, each once, on level 2 (where the prince is safe): the
 # messages, the pause (Show Time ends it), Restart Level after a run (the
 # minutes kept) and Restart Game (the minutes back to 75)
-commands_args=(--press 30:_:1 --press 60:u:1 --press 90:m:1 --press 120:v:1 --press 150:j:1 --press 180:k:1
+commands_args=(--press 30:_:1 --press 60:u:1 --press 90:m:1 --press 120:v:1
 	--press 210:X:1 --press 240:_:1 --poke "300:Minutes Left=50" --press 320:R:10 --press 335:a:1 --press 380:r:1)
 # every cheat, on level 2: the DOS game's and SDLPoP2's own
 cheats_args=(--press 30:+:1 --press 40:-:1 --press 50:M:1 --press 60:1:1 --press 70:O:1 --press 80:I:1 --press 90:I:1
@@ -210,7 +210,7 @@ cheats_args=(--press 30:+:1 --press 40:-:1 --press 50:M:1 --press 60:1:1 --press
 	--press 250:2:1 --press 260:3:1 --press 270:4:1 --poke "280:Kid.HP=0" --press 330:V:1)
 test_args() {
 	case "$1" in
-		commands) args=("${commands_args[@]}" $(for s in 62 92 122 152 182 212; do echo --screenshot "$s:$work/cmd-$s.tga"; done)) ;;
+		commands) args=("${commands_args[@]}" $(for s in 62 92 122 212; do echo --screenshot "$s:$work/cmd-$s.tga"; done)) ;;
 		cheats) args=("${cheats_args[@]}" $(for s in 72 82 112 122 132 142 232 242; do echo --screenshot "$s:$work/cheat-$s.tga"; done)) ;;
 		# the title sequence: the Broderbund card, the credits; the first
 		# picture of the title's (step 9) and the one before it
@@ -495,19 +495,19 @@ keycodes() { SHELL_TRACE=1 timeout 300 "$nat/run-native" "$@" 2>&1 | awk '/ shel
 kc="$(keycodes "$work/commands" --frames 500 "${commands_args[@]}")"
 kn="$(keycodes "$work/commands" --frames 60 --press 30:n:1 --trace "$work/nextlevel.trace" --trace-props "$cprops")"
 kh="$(keycodes "$work/cheats" --frames 400 "${cheats_args[@]}")"
-want_c="32 7936 12800 12032 9216 9472 27 32 19712 7680 4864 "
+want_c="32 7936 12800 12032 27 32 19712 7680 4864 "
 want_h="43 45 84 75 82 73 73 87 15616 15616 71 122 39680 40192 38912 40960 39680 116 18432 97 98 104 103 107 83 114 "
 if [ "$kc" = "$want_c" ] && [ "$kn" = "12544 " ] && [ "$kh" = "$want_h" ]; then
-	report "keys:codes" PASS "10 commands (Space, Alt+S M V J K, Esc, Alt+A R N) and 22 cheats arrive as the DOS game's key codes"
+	report "keys:codes" PASS "8 commands (Space, Alt+S M V, Esc, Alt+A R N) and 22 cheats arrive as the DOS game's key codes"
 else
 	report "keys:codes" FAIL "commands [$kc] next [$kn] cheats [$kh]"
 fi
 
 # ------------------------------------------------------------------ 6c. the commands
 ct="$work/commands.trace"
-msgs=""; for s in 62 92 122 152 182 212; do png "cmd-$s"; msgs="$msgs$(strip "$work/cmd-$s.tga") "; done
-if [ "$msgs" = "c0564ca64c3fc3bf 2b8aae47c79a1313 512534bd5f388ed7 7890fc2191525a40 77b641355b98cf3b c33fa1725b5d00ea " ]; then
-	report "commands:messages" PASS "SOUND OFF, AMBIENT MUSIC OFF, PRINCE OF PERSIA 2 V1.1, JOYSTICK NOT FOUND, KEYBOARD MODE, GAME PAUSED"
+msgs=""; for s in 62 92 122 212; do png "cmd-$s"; msgs="$msgs$(strip "$work/cmd-$s.tga") "; done
+if [ "$msgs" = "c0564ca64c3fc3bf 2b8aae47c79a1313 512534bd5f388ed7 c33fa1725b5d00ea " ]; then
+	report "commands:messages" PASS "SOUND OFF, AMBIENT MUSIC OFF, PRINCE OF PERSIA 2 V1.1, GAME PAUSED"
 else
 	report "commands:messages" FAIL "strips $msgs(build/gate/cmd-*.png)"
 fi

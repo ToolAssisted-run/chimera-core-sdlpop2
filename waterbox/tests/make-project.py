@@ -31,7 +31,6 @@ LETTERS = {
     "U": "P1 Up", "D": "P1 Down", "L": "P1 Left", "R": "P1 Right", "S": "P1 Shift", "C": "P1 Ctrl",
     "X": "Pause", "_": "Show Time",
     "a": "Restart Level", "r": "Restart Game", "n": "Next Level", "u": "Sound On/Off", "m": "Music On/Off", "v": "Version",
-    "j": "Joystick Mode", "k": "Keyboard Mode",
     "1": "Cheat Lose Hit Point", "2": "Cheat Opponent Hit Point", "3": "Cheat Kill Room", "4": "Cheat Spirit Leaves",
     "+": "Cheat More Time", "-": "Cheat Less Time", "I": "Cheat Flip Screen", "O": "Cheat Show Room",
     "M": "Cheat Add Max Hit Point", "W": "Cheat Feather Fall", "V": "Cheat Revive", "P": "Cheat Demo Player",

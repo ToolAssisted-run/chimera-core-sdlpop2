@@ -521,7 +521,6 @@ static const struct { uint8_t scan; char ascii; uint8_t mods; } k_keys[POP2_BTN_
 	[POP2_BTN_RESTART_LEVEL] = { 0x1E, 'a', MOD_ALT }, [POP2_BTN_RESTART_GAME] = { 0x13, 'r', MOD_ALT },
 	[POP2_BTN_NEXT_LEVEL] = { 0x31, 'n', MOD_ALT }, [POP2_BTN_SOUND_ON_OFF] = { 0x1F, 's', MOD_ALT },
 	[POP2_BTN_MUSIC_ON_OFF] = { 0x32, 'm', MOD_ALT }, [POP2_BTN_VERSION] = { 0x2F, 'v', MOD_ALT },
-	[POP2_BTN_JOYSTICK_MODE] = { 0x24, 'j', MOD_ALT }, [POP2_BTN_KEYBOARD_MODE] = { 0x25, 'k', MOD_ALT },
 	[POP2_BTN_CHEAT_LOSE_HIT_POINT] = { 0x25, 'k', MOD_SHIFT }, [POP2_BTN_CHEAT_OPPONENT_HIT_POINT] = { 0x22, 'g', 0 },
 	[POP2_BTN_CHEAT_KILL_ROOM] = { 0x25, 'k', 0 }, [POP2_BTN_CHEAT_SPIRIT_LEAVES] = { 0x1F, 's', MOD_SHIFT },
 	[POP2_BTN_CHEAT_MORE_TIME] = { 0x4E, '+', 0 }, [POP2_BTN_CHEAT_LESS_TIME] = { 0x4A, '-', 0 },

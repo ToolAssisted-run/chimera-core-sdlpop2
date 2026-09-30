@@ -477,6 +477,17 @@ fi
 # the bottom line of a picture (the game's messages)
 strip() { tail -c +19 "$1" 2>/dev/null | head -c $((320 * 200 * 4)) | tail -c $((320 * 16 * 4)) | sha1sum | cut -c1-16; }
 tgapixels() { tail -c +19 "$1" 2>/dev/null | sha1sum | cut -c1-16; }
+# the game knows its device (SDLPoP2 issue #1): with the speaker, Music On/Off
+# on level 2 answers "Music Unavailable" where the card's says "Ambient Music
+# Off" - the message line, speaker against fm
+musicmsg() { wd="$(workdir "musicmsg-$1" "{\"music\":\"$1\",\"skip_title\":true,\"first_level\":2}")"
+	boxed "$wd" --frames 100 --press 90:m:1 --screenshot "92:$work/musicmsg-$1.tga" >/dev/null 2>&1; strip "$work/musicmsg-$1.tga"; }
+mm_fm="$(musicmsg fm)"; mm_sp="$(musicmsg speaker)"
+if [ "$mm_fm" = "2b8aae47c79a1313" ] && [ "$mm_sp" = "d899375feb29d15e" ]; then
+	report "speaker:game-knows" PASS "Music On/Off with the speaker: MUSIC UNAVAILABLE; with the card: AMBIENT MUSIC OFF"
+else
+	report "speaker:game-knows" FAIL "strips: fm $mm_fm (want 2b8aae47c79a1313), speaker $mm_sp (want d899375feb29d15e)"
+fi
 # every command and cheat button reaches the program as the DOS key code its
 # key has (SDLPoP2's own trace of the keys the game reads while playing): Alt
 # commands scan << 8, Shift+letter a capital, F3 and the Alt arrows their codes

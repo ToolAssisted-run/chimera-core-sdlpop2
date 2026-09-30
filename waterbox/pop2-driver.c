@@ -148,6 +148,7 @@ int config_load(pop2_config *c)
 {
 	for (int i = 0; i < 16; i++) c->w[i] = (int16_t)(k_config[i * 2] | k_config[i * 2 + 1] << 8);
 	if (g.roland) c->w[4] = AUDIO_MIDI_MT32;
+	if (g.speaker) c->w[4] = 0;   /* no MIDI device: the speaker's setup */
 	return 1;
 }
 
@@ -468,9 +469,10 @@ int pop2drv_init(char *err, int errsize)
 	 * DOS program played them on a Sound Blaster Pro - or the music on an
 	 * MT-32, whose timbres the start-up sends it first and waits for (9.35 s),
 	 * as the original did (shell_sound_setup_hook) - or the PC speaker alone.
-	 * What the game does is the Sound Blaster setup's whichever plays it: its
-	 * sound_caps stays 3 (with the speaker, Alt+M still toggles the music the
-	 * speaker does not play) */
+	 * The game knows which (SDLPoP2 issue #1, shell_set_sound_device below):
+	 * with the speaker it opens the speaker's sounds, says "Music
+	 * Unavailable", plays no ambient music and waits as long as the speaker's
+	 * sounds last, as the original on that machine did */
 	if (g.roland && !mt32_open(err, errsize)) return 0;
 	audio_midi_out = g.roland ? on_midi : NULL;
 	if (!audio_init_midi(".", g.speaker ? SOUND_DEVICE_SPEAKER : SOUND_DEVICE_FM_DIGITAL, g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM,
@@ -493,6 +495,9 @@ int pop2drv_init(char *err, int errsize)
 
 	shell_tick_hook = on_tick;
 	shell_set_seed(seed);
+	/* the device the game logic believes in (DS:2085's capabilities and
+	 * CONFIG.DAT's MIDI type), the same the sound is rendered for */
+	shell_set_sound_device(g.speaker ? 0 : 3, g.speaker ? 0 : g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM);
 	if (!shell_init(".", cheats ? 1 : 0, words))
 	{
 		snprintf(err, (size_t)errsize, "SDLPoP2 could not load the game.");

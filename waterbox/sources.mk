@@ -41,7 +41,10 @@ MUNT_CXXFLAGS_COMMON := -std=c++11 -O2 -I$(ROOT)/build/munt-config -I$(MUNT)
 
 # ---- the core
 CORE_NAMES := pop2-driver game-state coro files sha1 wbx-entry
-CORE_HDRS := pop2-driver.h sha1.h settings.inc $(MUNT_CONFIG)
+# SDLPoP2's own headers too: the core's objects compile against them (the
+# game's globals, the shell's interface), and a new SDLPoP2 changes them without
+# touching a file here - game-state.o survived one such bump and read garbage
+CORE_HDRS := pop2-driver.h sha1.h settings.inc $(MUNT_CONFIG) $(wildcard $(POP2)/*.h)
 
 # the calls the core answers itself (files.c)
 WRAP_FLAGS := -Wl,--wrap=fopen

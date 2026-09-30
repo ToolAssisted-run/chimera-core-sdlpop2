@@ -100,10 +100,12 @@ and Munt's libmt32emu for the Roland MT-32.
   left out: Munt cannot play it.
 - **The PC speaker**, the Sound Device setting's `speaker`: no card at all, the
   game's own speaker player with its sounds (IBMSND.DAT, and NISIBM.DAT for
-  the story scenes), as SDLPoP2 rebuilds it. What the game does is still the
-  Sound Blaster setup's - its sound capabilities stay the card's, so Music
-  On/Off still toggles the music the speaker does not play, where the
-  original with no card answered "Music Unavailable".
+  the story scenes), as SDLPoP2 rebuilds it. The game knows it has no card
+  (SDLPoP2 issue #1), as the original on such a machine did: Music On/Off
+  answers "Music Unavailable", there is no ambient music, and the waits on a
+  death or a level's end last as long as the speaker's sounds. So a movie
+  plays on the device it was made with. Only the story scenes' timing is
+  still the card's.
 - **Files the game writes** (the hall of fame, the options) live in guest
   memory, so a savestate carries them. A project needs no file of its own: its
   file slot list is empty.

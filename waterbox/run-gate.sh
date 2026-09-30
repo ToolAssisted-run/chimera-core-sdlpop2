@@ -86,6 +86,9 @@ native() { timeout 300 "$nat/run-native" "$@"; }
 boxed() { timeout 300 "$nat/run-wbx" "$wbx" "$@"; }
 # the property at a step of a trace (column 4 on is --trace-props, in order)
 at() { awk -v s="$2" -v c="$3" '$1 == s { print $(3 + c) }' "$1"; }
+# the bottom line of a picture (the game's messages)
+strip() { tail -c +19 "$1" 2>/dev/null | head -c $((320 * 200 * 4)) | tail -c $((320 * 16 * 4)) | sha1sum | cut -c1-16; }
+tgapixels() { tail -c +19 "$1" 2>/dev/null | sha1sum | cut -c1-16; }
 # a step's length in VGA frames (70.086 Hz), from the rate a trace reports
 frames_of() { awk -v s="$2" '$1 == s { split($2, r, "/"); print r[2] / 44900 }' "$1"; }
 
@@ -231,6 +234,18 @@ if [ -f "$data/ir/PRINCE.EXE" ] && [ -f "$data/v10/PRINCE.EXE" ]; then
 		report "version:1.0-plays-its-own" PASS "level 10, tick 124: 1.1's second guard advances to x 431, 1.0's holds at 445 (the same until then)"
 	else
 		report "version:1.0-plays-its-own" FAIL "1.1 [$s11] (want 123:445/158 124:431/164), 1.0 [$s10] (want 123:445/158 124:445/186)"
+	fi
+	# Version (Alt+V) shows the release's own title (SDLPoP2 a575569; before it
+	# every release said 1.1's): "PRINCE OF PERSIA 2 v1.1", "PRINCE OF PERSIA 2
+	# 1.0", and the initial release's "PRINCE OF PERSIA 2" - the message line
+	altv() { boxed "$1" --frames 100 --press 90:v:1 --screenshot "92:$work/$2.tga" > /dev/null 2>&1; strip "$work/$2.tga"; }
+	v11="$(altv "$(workdir altv-11 '{"skip_title":true,"first_level":2}')" altv-11)"
+	v10="$(altv "$(relwd altv-10 '{"version":"1.0","skip_title":true,"first_level":2}' "$data/v10")" altv-10)"
+	vir="$(altv "$(relwd altv-ir '{"version":"ir","skip_title":true,"first_level":2}' "$data/ir")" altv-ir)"
+	if [ "$v11" = a49508f6d327d84d ] && [ "$v10" = 6a09cffa842189c5 ] && [ "$vir" = 8420b3306c2a2de7 ]; then
+		report "version:alt-v" PASS "Alt+V: PRINCE OF PERSIA 2 V1.1, PRINCE OF PERSIA 2 1.0, PRINCE OF PERSIA 2 (the initial release)"
+	else
+		report "version:alt-v" FAIL "strips 1.1 $v11 1.0 $v10 ir $vir (build/gate/altv-*.tga)"
 	fi
 	# the initial release's cheat word is its own (makinit, PRINCE.DAT's TXT4
 	# 10): with the cheats on, More Time on step 30 adds a minute
@@ -550,9 +565,6 @@ else
 fi
 
 # ------------------------------------------------------------------ 6b. the keys
-# the bottom line of a picture (the game's messages)
-strip() { tail -c +19 "$1" 2>/dev/null | head -c $((320 * 200 * 4)) | tail -c $((320 * 16 * 4)) | sha1sum | cut -c1-16; }
-tgapixels() { tail -c +19 "$1" 2>/dev/null | sha1sum | cut -c1-16; }
 # the game knows its device (SDLPoP2 issue #1): with the speaker, Music On/Off
 # on level 2 answers "Music Unavailable" where the card's says "Ambient Music
 # Off" - the message line, speaker against fm

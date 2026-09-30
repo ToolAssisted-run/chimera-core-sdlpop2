@@ -28,7 +28,6 @@
 #include <waterbox_slots.h>
 
 #include "pop2-driver.h"
-#include "sha1.h"
 
 /* the MT-32: Munt's libmt32emu, through its C API */
 #define MT32EMU_API_TYPE 1
@@ -39,6 +38,7 @@
 #include "render.h"
 #include "settings.h"
 #include "shell.h"
+#include "version.h"
 
 /* ------------------------------------------------------------ the game's files */
 
@@ -47,62 +47,80 @@ typedef struct
 	const char *name;
 	long size;
 	const char *sha1;
+	int releases;   /* the releases whose file this is (R_*) */
 } pop2_file;
 
-/* Prince of Persia 2 1.0 as the Prince of Persia Collection CD has it - the
- * release SDLPoP2 is rebuilt from, whose PRINCE.EXE it reads tables out of.
- * The same list as SDLPoP2's own frontend checks (sdl/main.c game_files), less
- * CONFIG.DAT (the core's own, below), plus PRESETS.DEF (the FM instruments,
- * which audio.c and nis.c read). The hashes are the originals', which the
- * declarations give the frontend to find them by; a file of the project's own
- * is taken in their place (check_files). */
+/* The three DOS releases (SDLPoP2's docs/VERSIONS.md), as the version setting
+ * names them: 1.1, the Prince of Persia Collection CD's, which SDLPoP2 is
+ * rebuilt from; 1.0; and the initial release. */
+enum { R_11 = 1, R_10 = 2, R_IR = 4, R_1X = R_11 | R_10, R_ALL = R_1X | R_IR };
+
+/* Each release's files. 1.0 and 1.1 have the same data files (only their
+ * PRINCE.EXEs differ); the initial release's differ in twelve. The same list
+ * as SDLPoP2's own frontend checks (sdl/main.c game_files), less CONFIG.DAT
+ * (the core's own, below), plus PRESETS.DEF (the FM instruments, which
+ * audio.c and nis.c read); the Tandy and fragment sounds of 1.0 and the
+ * initial release (TANDYSND.DAT, FRAGSND.DAT) are not read. The hashes are
+ * the originals' (the executables uncracked), which the declarations give the
+ * frontend to find them by; a file of the project's own is taken in their
+ * place (check_files). */
 static const pop2_file k_files[] = {
-	{ "PRINCE.EXE", 259583, "835FD96C57CD4AC729ED0B5630623552987E0AC4" },
-	{ "SEQUENCE.DAT", 11980, "496AF1AF9AED022A0586734470268E3498D85FDA" },
-	{ "PRINCE.DAT", 388168, "C39AC9540B73D8F7AA65D7E7EC6A85540BB4D709" },
-	{ "KID.DAT", 79395, "E038004C360EE2ED5174542B808B41918A39DBE1" },
-	{ "GUARD.DAT", 27299, "64820F5668965553A5770C4C39A7438E00F33BBD" },
-	{ "HEAD.DAT", 20084, "1631EC0BD012488230151E853AA5236CD69924AA" },
-	{ "SKELETON.DAT", 13744, "27A951260261D1C7A9D1C5E6C931C77675646CBB" },
-	{ "BIRD.DAT", 32151, "3AE61A9D4BBAFA2C5006EDB99286EA6EF6F892D9" },
-	{ "FLAME.DAT", 3126, "00898BA4B299BF85278B51932B989B050007226C" },
-	{ "JINNEE.DAT", 3568, "39F55DBCD3F670A50D4094F8F1819634DE22B5CF" },
-	{ "ROOFTOPS.DAT", 146028, "CEF749707F59A42405A138E06D4EB47266CC45E9" },
-	{ "DESERT.DAT", 104211, "1653D628D573B37E2995AB401CB3045171E0D4F3" },
-	{ "CAVERNS.DAT", 183189, "C75FE3409BB899A58040DFB7BDD8CE69A0463318" },
-	{ "RUINS.DAT", 273461, "28A511F606AD548C1990F6588DCE517072612CFF" },
-	{ "TEMPLE.DAT", 116801, "E8F32C5E71925CC4407469E67E5D9CA25ADFD89C" },
-	{ "FINAL.DAT", 401268, "BE60A0B430CFFC9D90AC149F459126483A138FE4" },
-	{ "TRANS.DAT", 485491, "59EB0DA70BF07FBFBB3E1BFB7ABC7F88496829DD" },
-	{ "NIS.DAT", 1083866, "967577AE97BA90EDA9B6978052972FFEDC2E7108" },
-	{ "NIS3VC.DAT", 124155, "80B38F4D950D784870DB7337342D2DB8345F6B1F" },
-	{ "DIGISND.DAT", 669947, "C85676AF956DF86D81208953F6838C7DDC247E06" },
-	{ "MIDISND.DAT", 414088, "78A11A430105E74E7F30D6EA7EDC52F78919A916" },
-	{ "IBMSND.DAT", 33142, "5B8B40D3EB2F05176588B32A98CB8366F215981E" },
-	{ "NISDIGI.DAT", 1118400, "6970F716575646A56CAB95DD1EE2D907CDCA901F" },
-	{ "NISMIDI.DAT", 174611, "77CEF6AE39B138433927B7D41B8905B724FA99D3" },
-	{ "NISIBM.DAT", 12168, "EE5D0BDC6ACFF9D26B560BB7C02EABD3C4E1A7DB" },
-	{ "PRESETS.DEF", 2049, "AE5547FB0D840EE0AB643FE41046A9289B28F310" },
+	{ "PRINCE.EXE", 259583, "835FD96C57CD4AC729ED0B5630623552987E0AC4", R_11 },
+	{ "SEQUENCE.DAT", 11980, "496AF1AF9AED022A0586734470268E3498D85FDA", R_1X },
+	{ "PRINCE.DAT", 388168, "C39AC9540B73D8F7AA65D7E7EC6A85540BB4D709", R_1X },
+	{ "KID.DAT", 79395, "E038004C360EE2ED5174542B808B41918A39DBE1", R_ALL },
+	{ "GUARD.DAT", 27299, "64820F5668965553A5770C4C39A7438E00F33BBD", R_ALL },
+	{ "HEAD.DAT", 20084, "1631EC0BD012488230151E853AA5236CD69924AA", R_ALL },
+	{ "SKELETON.DAT", 13744, "27A951260261D1C7A9D1C5E6C931C77675646CBB", R_ALL },
+	{ "BIRD.DAT", 32151, "3AE61A9D4BBAFA2C5006EDB99286EA6EF6F892D9", R_ALL },
+	{ "FLAME.DAT", 3126, "00898BA4B299BF85278B51932B989B050007226C", R_ALL },
+	{ "JINNEE.DAT", 3568, "39F55DBCD3F670A50D4094F8F1819634DE22B5CF", R_ALL },
+	{ "ROOFTOPS.DAT", 146028, "CEF749707F59A42405A138E06D4EB47266CC45E9", R_1X },
+	{ "DESERT.DAT", 104211, "1653D628D573B37E2995AB401CB3045171E0D4F3", R_ALL },
+	{ "CAVERNS.DAT", 183189, "C75FE3409BB899A58040DFB7BDD8CE69A0463318", R_1X },
+	{ "RUINS.DAT", 273461, "28A511F606AD548C1990F6588DCE517072612CFF", R_ALL },
+	{ "TEMPLE.DAT", 116801, "E8F32C5E71925CC4407469E67E5D9CA25ADFD89C", R_ALL },
+	{ "FINAL.DAT", 401268, "BE60A0B430CFFC9D90AC149F459126483A138FE4", R_1X },
+	{ "TRANS.DAT", 485491, "59EB0DA70BF07FBFBB3E1BFB7ABC7F88496829DD", R_1X },
+	{ "NIS.DAT", 1083866, "967577AE97BA90EDA9B6978052972FFEDC2E7108", R_1X },
+	{ "NIS3VC.DAT", 124155, "80B38F4D950D784870DB7337342D2DB8345F6B1F", R_1X },
+	{ "DIGISND.DAT", 669947, "C85676AF956DF86D81208953F6838C7DDC247E06", R_ALL },
+	{ "MIDISND.DAT", 414088, "78A11A430105E74E7F30D6EA7EDC52F78919A916", R_1X },
+	{ "IBMSND.DAT", 33142, "5B8B40D3EB2F05176588B32A98CB8366F215981E", R_1X },
+	{ "NISDIGI.DAT", 1118400, "6970F716575646A56CAB95DD1EE2D907CDCA901F", R_ALL },
+	{ "NISMIDI.DAT", 174611, "77CEF6AE39B138433927B7D41B8905B724FA99D3", R_1X },
+	{ "NISIBM.DAT", 12168, "EE5D0BDC6ACFF9D26B560BB7C02EABD3C4E1A7DB", R_1X },
+	{ "PRESETS.DEF", 2049, "AE5547FB0D840EE0AB643FE41046A9289B28F310", R_ALL },
+	{ "PRINCE.EXE", 292865, "9BDBC04C4DA7443CDA8C4DACD5AD6ADD8BAEA228", R_10 },
+	/* the initial release's own */
+	{ "PRINCE.EXE", 290415, "48CE406B9D9C9594E706425CBE7AF43E2A226AAC", R_IR },
+	{ "SEQUENCE.DAT", 11998, "0B8DE7DEA5E80793C47472F934B239773913114F", R_IR },
+	{ "PRINCE.DAT", 389760, "E3A34EF884BBE1B4107CE7394430F69B75959CF0", R_IR },
+	{ "ROOFTOPS.DAT", 147494, "D074EA47FB385DED42E3964118BA24038856EA87", R_IR },
+	{ "CAVERNS.DAT", 183196, "7E82A09AA9A881751FB6930242FF9C04B993B17B", R_IR },
+	{ "FINAL.DAT", 401987, "A415AC69A1A3F5BA5FCA09799741459B5B65DD04", R_IR },
+	{ "TRANS.DAT", 485552, "D7F6D7E6CE83551B59DDC1A5C9AD8897C8757D39", R_IR },
+	{ "NIS.DAT", 1083911, "BA5A90B0ED921CE26DBBB4C8BB52FA53A24DFD6A", R_IR },
+	{ "NIS3VC.DAT", 136051, "CA1BC7F49F73A3444ACBC15E966BA792D5200CAA", R_IR },
+	{ "MIDISND.DAT", 397377, "2A0422F3AC16D3D1F6FFDEC2C5078B3391E207A3", R_IR },
+	{ "IBMSND.DAT", 33261, "72CD490F868914430B3CEEE10213FBE95D86C764", R_IR },
+	{ "NISMIDI.DAT", 192411, "B8D53A09AE3BFDBBF447C476A182B8EFA6919563", R_IR },
+	{ "NISIBM.DAT", 12749, "9AA2F12AD989B4B455E1381AD4A0251F55D04AE3", R_IR },
 };
 #define POP2_FILE_COUNT ((int)(sizeof k_files / sizeof k_files[0]))
 
 /* The Roland MT-32's, when the music is the MT-32's (the music setting): the
  * setup's MIDI piece of the MT-32's timbres, which the DOS setup copies to
- * PRESETS.DEF for that device (both releases' SNDDRVRS\PRESET40.DEF), and the
+ * PRESETS.DEF for that device (every release's SNDDRVRS\PRESET40.DEF), and the
  * MT-32's two ROMs - v1.07, the first generation (the DOSBox-X core's firmware
  * ids and hashes). The FM instruments' PRESETS.DEF above stays: the story
  * scenes' timing is the FM driver's whatever plays the music (nis.c). */
 static const pop2_file k_roland_files[] = {
-	{ "PRESET40.DEF", 20715, "951F5F9A340F41C128C232AD0CB31329A1722345" },
-	{ "MT32_CONTROL.ROM", 65536, "B083518FFFB7F66B03C23B7EB4F868E62DC5A987" },
-	{ "MT32_PCM.ROM", 524288, "F6B1EEBC4B2D200EC6D3D21D51325D5B48C60252" },
+	{ "PRESET40.DEF", 20715, "951F5F9A340F41C128C232AD0CB31329A1722345", R_ALL },
+	{ "MT32_CONTROL.ROM", 65536, "B083518FFFB7F66B03C23B7EB4F868E62DC5A987", R_ALL },
+	{ "MT32_PCM.ROM", 524288, "F6B1EEBC4B2D200EC6D3D21D51325D5B48C60252", R_ALL },
 };
 #define POP2_ROLAND_FILE_COUNT ((int)(sizeof k_roland_files / sizeof k_roland_files[0]))
-
-/* The 1993 floppy release's PRINCE.EXE: another build of the program (the
- * tables SDLPoP2 reads are elsewhere in it). Every other file of that release
- * is the CD's, byte for byte. */
-#define FLOPPY_PRINCE_EXE_SHA1 "9BDBC04C4DA7443CDA8C4DACD5AD6ADD8BAEA228"
 
 /* ---------------------------------------------------------------- the state */
 
@@ -357,17 +375,17 @@ static int apply_settings(char *err, int errsize)
 static void on_tick(void) { g.tick = 1; }
 extern void (*shell_tick_hook)(void);   /* source/shell.c: where each game tick begins */
 
-/* Every file is there. What is in it is the project's: a file of its own
- * (a modified one, another dump) is taken as it is, and Chimera pins ITS hash
- * in the project (user-decided, 2026-09-29: a game core's firmware may be
- * custom). The one refusal left is a build known not to work: the floppy
- * release's PRINCE.EXE, whose tables SDLPoP2 would read from the wrong
- * places. */
-static int check_files(const pop2_file *files, int count, char *err, int errsize)
+/* Every file of the release played is there. What is in it is the
+ * project's: a file of its own (a modified one, another dump, a cracked
+ * PRINCE.EXE) is taken as it is, and Chimera pins ITS hash in the project
+ * (user-decided, 2026-09-29: a game core's firmware may be custom). Files of
+ * the wrong release are SDLPoP2's to refuse (shell_init_error). */
+static int check_files(const pop2_file *files, int count, int release, char *err, int errsize)
 {
 	for (int i = 0; i < count; i++)
 	{
 		const pop2_file *f = &files[i];
+		if (!(f->releases & release)) continue;
 		FILE *fp = fopen(f->name, "rb");
 		if (!fp)
 		{
@@ -375,28 +393,7 @@ static int check_files(const pop2_file *files, int count, char *err, int errsize
 				files == k_roland_files ? " for the Roland MT-32's music" : "");
 			return 0;
 		}
-		if (strcmp(f->name, "PRINCE.EXE"))
-		{
-			fclose(fp);
-			continue;
-		}
-		char hex[41];
-		long size = 0;
-		int ok = sha1_file(fp, hex, &size);
 		fclose(fp);
-		if (!ok)
-		{
-			snprintf(err, (size_t)errsize, "%s could not be read.", f->name);
-			return 0;
-		}
-		if (!strcmp(hex, FLOPPY_PRINCE_EXE_SHA1))
-		{
-			snprintf(err, (size_t)errsize,
-				"This PRINCE.EXE is the 1993 floppy release's. SDLPoP2 is rebuilt from the Prince of Persia "
-				"Collection CD's (1.0, %ld bytes), which is another build of the program: SDLPoP2 reads its tables "
-				"at the CD build's places. Every other file of the floppy release is the same as the CD's.", f->size);
-			return 0;
-		}
 	}
 	return 1;
 }
@@ -442,8 +439,21 @@ int pop2drv_init(char *err, int errsize)
 		snprintf(err, (size_t)errsize, "the music setting is %s; it is roland, fm or speaker", music);
 		return 0;
 	}
-	if (!check_files(k_files, POP2_FILE_COUNT, err, errsize)) return 0;
-	if (g.roland && !check_files(k_roland_files, POP2_ROLAND_FILE_COUNT, err, errsize)) return 0;
+	/* the release (the package's machines): SDLPoP2 plays each as it was,
+	 * from that release's own PRINCE.EXE and files */
+	char version[8];
+	if (wbx_setting_str("version", version, sizeof version) < 0) strcpy(version, "1.1");
+	int release, game_version;
+	if (!strcmp(version, "1.1")) release = R_11, game_version = POP2_VER_11;
+	else if (!strcmp(version, "1.0")) release = R_10, game_version = POP2_VER_10;
+	else if (!strcmp(version, "ir")) release = R_IR, game_version = POP2_VER_IR;
+	else
+	{
+		snprintf(err, (size_t)errsize, "the version setting is %s; it is 1.1, 1.0 or ir", version);
+		return 0;
+	}
+	if (!check_files(k_files, POP2_FILE_COUNT, release, err, errsize)) return 0;
+	if (g.roland && !check_files(k_roland_files, POP2_ROLAND_FILE_COUNT, release, err, errsize)) return 0;
 	if (apply_settings(err, errsize) < 0) return 0;
 	/* the name a won game enters in the hall of fame: the game takes the
 	 * printable characters, and wants at least one */
@@ -459,6 +469,8 @@ int pop2drv_init(char *err, int errsize)
 	/* the cheat word on the DOS command line, which the game reads as the
 	 * original did: it also lets Alt+N skip past level 3 and the debug keys */
 	static const char *words[] = { "yippeeyahoo" };
+	/* (the initial release's word is its own: PRINCE.DAT's TXT4 10) */
+	if (release == R_IR) words[0] = "makinit";
 	const int cheats = g.cheats = wbx_setting_bool("cheats", 0) != 0;
 	/* the in-game time from the start of level 1, the ticks before the game's
 	 * clock started included (game-state.c); nothing in play changes */
@@ -498,9 +510,11 @@ int pop2drv_init(char *err, int errsize)
 	/* the device the game logic believes in (DS:2085's capabilities and
 	 * CONFIG.DAT's MIDI type), the same the sound is rendered for */
 	shell_set_sound_device(g.speaker ? 0 : 3, g.speaker ? 0 : g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM);
+	shell_set_game_version(game_version);
 	if (!shell_init(".", cheats ? 1 : 0, words))
 	{
-		snprintf(err, (size_t)errsize, "SDLPoP2 could not load the game.");
+		/* the files are another release's (its reason), or not the game's */
+		snprintf(err, (size_t)errsize, "%s", shell_init_error() ? shell_init_error() : "SDLPoP2 could not load the game.");
 		return 0;
 	}
 	return 1;

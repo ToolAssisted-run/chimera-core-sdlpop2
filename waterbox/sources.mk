@@ -15,7 +15,7 @@ POP2_NAMES := anim audio audio_opl3 beast blades caverns char cheats collision c
 	level lever5 loader menu mobs nis render render_desc render_frame render_hooks render_kind2 \
 	render_kind3 render_kind4 render_kind_common render_kind_desc render_ovl37f0 render_palette \
 	render_screen render_sprites render_tiles room roomhooks ruins seq shadow13 shell skeleton sound \
-	spirit state temple text tick tiles trap walls bridge5 settings replay
+	spirit state temple text tick tiles trap walls bridge5 settings replay version
 POP2_SRCS := $(addprefix $(POP2)/,$(addsuffix .c,$(POP2_NAMES)))
 # as SDLPoP2's meson.build: gnu11, a release build, -Wall
 POP2_CFLAGS_COMMON := -std=gnu11 -O2 -I$(POP2)
@@ -40,11 +40,11 @@ $(MUNT_CONFIG): munt-config.h
 MUNT_CXXFLAGS_COMMON := -std=c++11 -O2 -I$(ROOT)/build/munt-config -I$(MUNT)
 
 # ---- the core
-CORE_NAMES := pop2-driver game-state coro files sha1 wbx-entry
+CORE_NAMES := pop2-driver game-state coro files wbx-entry
 # SDLPoP2's own headers too: the core's objects compile against them (the
 # game's globals, the shell's interface), and a new SDLPoP2 changes them without
 # touching a file here - game-state.o survived one such bump and read garbage
-CORE_HDRS := pop2-driver.h sha1.h settings.inc $(MUNT_CONFIG) $(wildcard $(POP2)/*.h)
+CORE_HDRS := pop2-driver.h settings.inc $(MUNT_CONFIG) $(wildcard $(POP2)/*.h)
 
 # the calls the core answers itself (files.c)
 WRAP_FLAGS := -Wl,--wrap=fopen

@@ -19,16 +19,20 @@ and Munt's libmt32emu for the Roland MT-32.
 
 ## What it is
 
-- **Prince of Persia 2 1.0 as the Prince of Persia Collection CD has it**,
-  from the user's own files - the release SDLPoP2 is rebuilt from, whose
-  PRINCE.EXE it reads tables out of. The package carries none of the game's
-  data: the 26 files are the project's **firmware**. A missing one is named
-  ("Prince of Persia 2 needs KID.DAT - add it as the project's firmware"). A
-  file of your own - a modified PRINCE.DAT, say - may take an original's place:
-  the core takes it as it is, and the project pins its hash. The 1993 floppy
-  release's PRINCE.EXE is another build of the program, whose tables SDLPoP2
-  would read from the wrong places, and is refused by name - every other file
-  of that release is the CD's, byte for byte.
+- **Prince of Persia 2, the DOS release the project names**: 1.1 (the Prince
+  of Persia Collection CD's, which SDLPoP2 is rebuilt from), 1.0 or the
+  initial release, from the user's own files: the package's machines, picked
+  in the new-project wizard's System box as an emulator's systems are (the
+  `version` setting; 1.1 by default). SDLPoP2 plays each as it was (its
+  docs/VERSIONS.md). The package carries none of the game's data: the
+  release's 26 files are the project's **firmware**. 1.0 and 1.1 share their
+  data files and differ in PRINCE.EXE; the initial release's are its own
+  (twelve differ), and so is its cheat word (makinit). A missing file is named
+  ("Prince of Persia 2 needs KID.DAT - add it as the project's firmware"), and
+  another release's files are refused by SDLPoP2 ("These are the initial
+  release's game files: 1.0 and 1.1 need theirs."). A file of your own - a
+  modified PRINCE.DAT, a cracked PRINCE.EXE - may take an original's place:
+  the core takes it as it is, and the project pins its hash.
 - **A frame is one step of the game**: while playing, the VGA frames
   (70.086 Hz) up to the next game tick, where the controls are read - 5 or 6
   of them for the game's 1/12 s tick, 7 or 8 when a tick is late; on the title,
@@ -139,9 +143,10 @@ and the package - each leg seen to fail on a break of its own. The MT-32's sound
 reference: Munt builds its tables in floating point, and glibc's libm and
 musl's round differently; the bytes it is sent, with their times, are compared.
 
-The game is the user's: put Prince of Persia 2's files (the Collection CD's)
-in `tests/roms-local` (gitignored), or pass `-d`; a floppy PRINCE.EXE in
-`tests/roms-local/floppy` is used for its refusal, and PRESET40.DEF with the
-MT-32's ROMs (MT32_CONTROL.ROM, MT32_PCM.ROM) in `tests/roms-local/roland` for
-the MT-32's legs. Without the files only the build, the declarations and the
-no-files refusal run.
+The game is the user's: put Prince of Persia 2's files (the Collection CD's) in
+`tests/roms-local` (gitignored), or pass `-d`; 1.0's PRINCE.EXE in
+`tests/roms-local/v10` and the initial release's files in `tests/roms-local/ir`
+(each with a cracked PRINCE-CRACKED.EXE) for the other releases' legs, and
+PRESET40.DEF with the MT-32's ROMs (MT32_CONTROL.ROM, MT32_PCM.ROM) in
+`tests/roms-local/roland` for the MT-32's legs. Without the files only the
+build, the declarations and the no-files refusal run.

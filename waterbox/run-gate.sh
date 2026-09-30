@@ -15,16 +15,21 @@
 #     natively and sandboxed, the start-up waiting for the timbres as the
 #     original did, the MT-32 heard in stereo; or all the sound on the PC
 #     speaker, the game the same
-#   - refuse a missing game file and the floppy release's PRINCE.EXE, and
-#     take a file of the project's own in the original's place
+#   - refuse a missing game file and another release's files, and take a
+#     file of the project's own in the original's place
+#   - play the three DOS releases (the version setting): 1.0 and the initial
+#     release the same natively and sandboxed, the initial release its own
+#     game, a cracked PRINCE.EXE the same as the original
 #   - ask for its coroutines' stacks as stacks (MAP_STACK)
 #   - package deterministically
 #
 # The game is the user's Prince of Persia 2 (the Collection CD's files), never
 # in the repository: the gate takes it from tests/roms-local (or -d <dir>).
 # Without it only the build, the declarations and the refusal of a project with
-# no files run. The floppy release's PRINCE.EXE, if tests/roms-local/floppy
-# holds one, is used for its refusal; the MT-32's legs need
+# no files run. The other releases' legs need tests/roms-local/v10 to hold
+# 1.0's PRINCE.EXE (and PRINCE-CRACKED.EXE, a cracked one) and
+# tests/roms-local/ir the initial release's files (the same two EXEs); the
+# MT-32's legs need
 # tests/roms-local/roland to hold the setup's PRESET40.DEF (SNDDRVRS on the CD)
 # and an MT-32's ROMs (MT32_CONTROL.ROM v1.07, MT32_PCM.ROM).
 #
@@ -158,16 +163,70 @@ else
 	report "refuse:missing-file" FAIL "$(grep -m1 . "$work/r1.txt")"
 fi
 
-if [ -f "$data/floppy/PRINCE.EXE" ]; then
-	wd="$(workdir refuse-floppy '{}')"; cp "$data/floppy/PRINCE.EXE" "$wd/PRINCE.EXE"
+# the releases (SDLPoP2's docs/VERSIONS.md), each from its own files: 1.0's
+# PRINCE.EXE with 1.1's data files (1.0 and 1.1 share them), the initial
+# release's own files. relwd <name> <settings> <release dir>
+relwd() { wd="$(workdir "$1" "$2")"; cp "$3"/*.DAT "$3"/*.EXE "$3"/*.DEF "$wd/" 2>/dev/null; rm -f "$wd/PRINCE-CRACKED.EXE"; echo "$wd"; }
+route() { "$@" --frames 400 --movie "$here/tests/play-movie.txt" --trace "$work/$tag.trace" --trace-props "Level,Kid.X,Kid.Y,Kid.Room" 2>/dev/null | grep -E '^(loadError|frames|videoHash|audioHash|stepsHash|domain\[)'; }
+if [ -f "$data/ir/PRINCE.EXE" ] && [ -f "$data/v10/PRINCE.EXE" ]; then
+	# the files of one release under another's setting: SDLPoP2's refusal, word for word
+	wd="$(relwd refuse-rel-ir '{"version":"ir"}' "$data/v10")"
 	boxed "$wd" --frames 1 > "$work/r2.txt" 2>/dev/null
-	if grep -q "^loadError=This PRINCE.EXE is the 1993 floppy release's. SDLPoP2 is rebuilt from the Prince of Persia Collection CD's" "$work/r2.txt"; then
-		report "refuse:floppy-exe" PASS "the floppy release's PRINCE.EXE refused by name"
+	wd="$(relwd refuse-rel-11 '{"version":"1.1"}' "$data/ir")"
+	boxed "$wd" --frames 1 > "$work/r3.txt" 2>/dev/null
+	if grep -qx "loadError=The initial release needs its own game files (these are 1.0 / 1.1's)." "$work/r2.txt" &&
+	   grep -qx "loadError=These are the initial release's game files: 1.0 and 1.1 need theirs." "$work/r3.txt"; then
+		report "refuse:release-files" PASS "1.0's files under the initial release, and the initial release's under 1.1, refused by SDLPoP2"
 	else
-		report "refuse:floppy-exe" FAIL "$(grep -m1 . "$work/r2.txt")"
+		report "refuse:release-files" FAIL "$(grep -m1 . "$work/r2.txt") / $(grep -m1 . "$work/r3.txt")"
+	fi
+
+	# each release on the play route, natively and sandboxed; and the same
+	# release from a cracked PRINCE.EXE (only the copy protection's code differs)
+	for rel in 10 ir; do
+		v="$rel"; [ "$rel" = 10 ] && v=1.0
+		wd="$(relwd "rel-$rel" "{\"version\":\"$v\",\"skip_title\":true}" "$data/$( [ "$rel" = 10 ] && echo v10 || echo ir )")"
+		tag="rel-$rel-box"; route boxed "$wd" > "$work/$tag.txt"
+		tag="rel-$rel-nat"; (cd "$wd" && route native . ) > "$work/$tag.txt"
+		wdc="$(relwd "rel-$rel-crk" "{\"version\":\"$v\",\"skip_title\":true}" "$data/$( [ "$rel" = 10 ] && echo v10 || echo ir )")"
+		cp "$data/$( [ "$rel" = 10 ] && echo v10 || echo ir )/PRINCE-CRACKED.EXE" "$wdc/PRINCE.EXE"
+		tag="rel-$rel-crk"; route boxed "$wdc" > "$work/$tag.txt"
+	done
+	wd="$(workdir rel-11 '{"skip_title":true}')"; tag="rel-11-box"; route boxed "$wd" > "$work/$tag.txt"
+	ok10=0; okir=0
+	grep -qx 'frames=400' "$work/rel-10-box.txt" && cmp -s "$work/rel-10-box.txt" "$work/rel-10-nat.txt" && ok10=1
+	grep -qx 'frames=400' "$work/rel-ir-box.txt" && cmp -s "$work/rel-ir-box.txt" "$work/rel-ir-nat.txt" && okir=1
+	if [ $ok10 = 1 ] && [ $okir = 1 ]; then
+		report "version:native" PASS "1.0 and the initial release play the route (400 steps), the same natively and sandboxed"
+	else
+		report "version:native" FAIL "1.0 $ok10, initial release $okir (build/gate/rel-*-box.txt vs -nat.txt)"
+	fi
+	# the initial release is its own game: at step 47 of the route its prince
+	# stands at x 394 where 1.1's stands at 401 (IR pushes out of a wall by
+	# 15 - d, not d - 32: docs/VERSIONS.md 3.1)
+	x_ir="$(at "$work/rel-ir-box.trace" 47 2)"; x_11="$(at "$work/rel-11-box.trace" 47 2)"
+	if [ "$x_ir" = 394 ] && [ "$x_11" = 401 ]; then
+		report "version:ir-plays-its-own" PASS "step 47 of the route: the initial release's prince at x 394, 1.1's at 401"
+	else
+		report "version:ir-plays-its-own" FAIL "step 47: initial release x $x_ir (want 394), 1.1 x $x_11 (want 401)"
+	fi
+	if cmp -s "$work/rel-10-box.txt" "$work/rel-10-crk.txt" && cmp -s "$work/rel-ir-box.txt" "$work/rel-ir-crk.txt"; then
+		report "version:cracked-exe" PASS "a cracked PRINCE.EXE plays the route as the original does (1.0 and the initial release)"
+	else
+		report "version:cracked-exe" FAIL "build/gate/rel-*-crk.txt differs from rel-*-box.txt"
+	fi
+	# the initial release's cheat word is its own (makinit, PRINCE.DAT's TXT4
+	# 10): with the cheats on, More Time on step 30 adds a minute
+	wd="$(relwd rel-ir-cheat '{"version":"ir","skip_title":true,"cheats":true}' "$data/ir")"
+	boxed "$wd" --frames 60 --press 30:+:1 --trace "$work/rel-ir-cheat.trace" --trace-props "Minutes Left" > /dev/null 2>&1
+	m29="$(at "$work/rel-ir-cheat.trace" 29 1)"; m59="$(at "$work/rel-ir-cheat.trace" 59 1)"
+	if [ -n "$m29" ] && [ "$m59" = "$((m29 + 1))" ]; then
+		report "version:ir-cheat-word" PASS "the initial release takes its own cheat word: More Time $m29 -> $m59 minutes"
+	else
+		report "version:ir-cheat-word" FAIL "minutes $m29 -> $m59 (want one more)"
 	fi
 else
-	report "refuse:floppy-exe" SKIP "no floppy PRINCE.EXE in $data/floppy"
+	report "version:releases" SKIP "no 1.0 PRINCE.EXE in $data/v10 or initial release in $data/ir"
 fi
 
 # a file of the project's own is taken in the original's place (Chimera pins

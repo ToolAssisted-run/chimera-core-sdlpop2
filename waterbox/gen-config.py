@@ -31,14 +31,25 @@ def ini_settings():
     return out
 
 
+# the releases, as the version setting names them, the driver's R_* mask bits,
+# and what the System box calls them - 1.1 first: the default, and the release
+# every project played before there was a choice
+RELEASES = [("1.1", 1, "Prince of Persia 2 1.1 (Collection CD)"),
+            ("1.0", 2, "Prince of Persia 2 1.0"),
+            ("ir", 4, "Prince of Persia 2 initial release")]
+MASKS = {"R_11": 1, "R_10": 2, "R_IR": 4, "R_1X": 3, "R_ALL": 7}
+
+
 def game_files():
-    """(name, size, sha1, roland): the files pop2-driver.c checks at Init - its
-    k_files, always, and its k_roland_files, when the music is the MT-32's."""
+    """(name, size, sha1, roland, releases): the files pop2-driver.c checks at
+    Init - its k_files, always, and its k_roland_files, when the music is the
+    MT-32's - each with the releases (version setting values) it belongs to."""
     text = open(os.path.join(HERE, "pop2-driver.c")).read()
     split = text.index("k_roland_files[] = {")
     out = []
-    for m in re.finditer(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF|ROM))", (\d+), "([0-9A-F]{40})" \}', text):
-        out.append((m.group(1), int(m.group(2)), m.group(3), m.start() > split))
+    for m in re.finditer(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF|ROM))", (\d+), "([0-9A-F]{40})", (R_\w+) \}', text):
+        mask = MASKS[m.group(4)]
+        out.append((m.group(1), int(m.group(2)), m.group(3), m.start() > split, [v for v, bit, _ in RELEASES if mask & bit]))
     return out
 
 
@@ -90,24 +101,35 @@ WHAT = {
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "waterbox.config")
     firmware = []
-    for name, size, sha1, roland in game_files():
+    everyone = [v for v, _, _ in RELEASES]
+    names = {"1.1": "1.1", "1.0": "1.0", "ir": "initial release"}
+    for name, size, sha1, roland, releases in game_files():
+        which = "/".join(names[v] for v in reversed(releases)) if releases != everyone else ""
         if name.endswith(".ROM"):
             display = "Roland MT-32 %s ROM" % ("control" if "CONTROL" in name else "PCM")
             desc = "%s: %s. Yours to supply, when the music is the Roland MT-32's - the package carries none of it. Another MT-32 ROM Munt knows may take its place (the project pins its hash)." % (name, WHAT[name])
         else:
-            display = "Prince of Persia 2 1.0 " + name
-            desc = "%s of Prince of Persia 2 1.0 (DOS), as the Prince of Persia Collection CD has it: %s. Yours to supply%s - the package carries none of the game's data. A file of your own (a modified one) may take its place: the project pins its hash.%s" % (
-                name, WHAT[name], ", when the music is the Roland MT-32's" if roland else "",
-                " The 1993 floppy release's PRINCE.EXE is another build of the program and is refused; its other files are the CD's." if name == "PRINCE.EXE" else "")
+            display = "Prince of Persia 2 %s%s" % (which + " " if which else "", name)
+            desc = "%s of Prince of Persia 2 %s(DOS): %s. Yours to supply%s - the package carries none of the game's data. A file of your own (a modified one) may take its place: the project pins its hash.%s" % (
+                name, which + " " if which else "", WHAT[name], ", when the music is the Roland MT-32's" if roland else "",
+                " The uncracked program's hash; a cracked copy plays the same (only the copy protection's code differs, which SDLPoP2 does not run)." if name == "PRINCE.EXE" and releases != ["1.1"] else "")
         decl = {"id": name, "display": display, "description": desc, "size": size, "sha1": sha1, "name": name}
+        conds = []
+        if releases != everyone:
+            conds.append({"setting": "version", "in": releases})
         if roland:
-            decl["requiredWhen"] = {"setting": "music", "in": ["roland"]}
+            conds.append({"setting": "music", "in": ["roland"]})
+        if conds:
+            decl["requiredWhen"] = conds[0] if len(conds) == 1 else {"all": conds}
         firmware.append(decl)
 
     cfg = {
         "coreName": "SDLPoP2",
         "kind": "game",
-        "systemId": "PrinceOfPersia2",
+        # the releases are the package's machines: the new-project wizard offers
+        # them in its System box, as it offers an emulator's systems
+        "machineSetting": "version",
+        "machines": [{"id": "PrinceOfPersia2", "label": label, "when": [v]} for v, _, label in RELEASES],
         "author": "Sergio Martin and the SDLPoP2 contributors, from Jordan Mechner's Prince of Persia 2; chimera port by Sergio Martin",
         "url": "https://github.com/ToolAssisted-run/chimera-core-sdlpop2",
         "deterministic": True,
@@ -139,6 +161,14 @@ def main():
         },
         "settings": [
             {
+                "name": "version",
+                "display": "Version",
+                "type": "enum",
+                "options": [v for v, _, _ in RELEASES],
+                "default": "1.1",
+                "description": "The DOS release played, whose files the project brings (SDLPoP2's docs/VERSIONS.md): 1.1, the Prince of Persia Collection CD's, which SDLPoP2 is rebuilt from; 1.0; or the initial release (ir). They differ in movement near walls and gates, the guards, the spirit, levels 2, 5, 8 and 14, the timers and random numbers, and a few story scenes. 1.0 and 1.1 have the same data files and differ in PRINCE.EXE; the initial release's files are its own (twelve of them differ), and its cheat word is makinit.",
+            },
+            {
                 "name": "music",
                 "display": "Sound Device",
                 "type": "enum",
@@ -167,7 +197,7 @@ def main():
                 "display": "Enable Cheats",
                 "type": "bool",
                 "default": False,
-                "description": "Start the program with the cheat word on its command line (yippeeyahoo), as the original allowed: the cheats' buttons exist only with this on (the DOS game's cheats and SDLPoP2's own), and Next Level (Alt+N) reaches any level.",
+                "description": "Start the program with the cheat word on its command line (yippeeyahoo; the initial release's makinit), as the original allowed: the cheats' buttons exist only with this on (the DOS game's cheats and SDLPoP2's own), and Next Level (Alt+N) reaches any level.",
             },
             {
                 "name": "igt_from_level_1",

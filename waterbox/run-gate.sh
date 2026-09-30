@@ -573,9 +573,9 @@ fi
 wd="$(workdir nocheats '{"skip_title":true,"first_level":2}')"
 boxed "$wd" --frames 300 > "$work/nocheats-plain.txt" 2>/dev/null
 boxed "$wd" --frames 300 --press "100:1234+-IOMWVPGBF:20" --press "100:Z<>^~QA:20" > "$work/nocheats-pressed.txt" 2>/dev/null
-if grep -qx 'activeButtons=16' "$work/nocheats-plain.txt" && grep -qx 'activeButtons=38' "$work/cheats.box.txt" &&
+if grep -qx 'activeButtons=14' "$work/nocheats-plain.txt" && grep -qx 'activeButtons=36' "$work/cheats.box.txt" &&
    cmp -s <(digests < "$work/nocheats-plain.txt") <(digests < "$work/nocheats-pressed.txt"); then
-	report "cheats:off" PASS "16 buttons active without the setting (38 with it); every cheat held for 20 steps changes nothing"
+	report "cheats:off" PASS "14 buttons active without the setting (36 with it); every cheat held for 20 steps changes nothing"
 else
 	report "cheats:off" FAIL "$(grep activeButtons "$work/nocheats-plain.txt") / $(grep activeButtons "$work/cheats.box.txt"); $(diff <(digests < "$work/nocheats-plain.txt") <(digests < "$work/nocheats-pressed.txt") | head -2 | tr '\n' ' ')"
 fi

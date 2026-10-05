@@ -98,6 +98,50 @@ WHAT = {
 }
 
 
+# ---- what the controls and the system are called ----
+# The frontend keeps no table of these: a core says what its own are called.
+# MNEMONICS is the letter each button writes into a movie's text and heads its
+# input column with, by the button's name - whole, or without its player ("P2
+# Up" is found under "Up"), so one line serves every pad. AXIS_HEADERS is the
+# short header of each axis's column. (An entry is read by position: a letter
+# may change and no movie made before it is harmed.)
+MNEMONICS = {
+    "Up": "U", "Down": "D", "Left": "L", "Right": "R", "Shift": "^", "Ctrl": "c", "Pause": "p",
+    "Show Time": "t", "Restart Level": "a", "Restart Game": "r", "Next Level": "n",
+    "Sound On/Off": "s", "Music On/Off": "m", "Version": "v", "Cheat Lose Hit Point": "Y",
+    "Cheat Opponent Hit Point": "O", "Cheat Kill Room": "K", "Cheat Spirit Leaves": "S",
+    "Cheat More Time": "+", "Cheat Less Time": "-", "Cheat Flip Screen": "I",
+    "Cheat Show Room": "?", "Cheat Add Max Hit Point": "M", "Cheat Feather Fall": "W",
+    "Cheat Revive": "V", "Cheat Demo Player": "P", "Cheat God Mode": "G", "Cheat Leave Body": "B",
+    "Cheat Leave Body Flame": "F", "Cheat Sword": "Z", "Cheat Look Left": "4",
+    "Cheat Look Right": "6", "Cheat Look Up": "8", "Cheat Look Down": "2", "Cheat Teleport": "T",
+    "Cheat Fly": "A",
+}
+SYSTEM_NAMES = {
+    "PrinceOfPersia2": "Prince of Persia 2",
+}
+
+
+def _bare(name):
+    """A control's name without its player: "P2 Up" -> "Up"."""
+    head, _, rest = name.partition(" ")
+    return rest if rest and head[:1] == "P" and head[1:].isdigit() else name
+
+
+def mnemonics_for(buttons):
+    """The "mnemonics" of an input declaration: a letter for every one of its
+    buttons, and for nothing else. A button nobody gave a letter stops the
+    build - the engine would give it its rule's guess, and two columns of one
+    pad would share a letter with nobody having decided it."""
+    out = {}
+    for b in buttons:
+        key = b if b in MNEMONICS else _bare(b)
+        if key not in MNEMONICS:
+            raise SystemExit("no mnemonic for the button %r (MNEMONICS in %s)" % (b, __file__))
+        out[key] = MNEMONICS[key]
+    return out
+
+
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "waterbox.config")
     firmware = []
@@ -126,6 +170,7 @@ def main():
     cfg = {
         "coreName": "SDLPoP2",
         "kind": "game",
+        "systemNames": SYSTEM_NAMES,
         # the releases are the package's machines: the new-project wizard offers
         # them in its System box, as it offers an emulator's systems
         "machineSetting": "version",
@@ -158,6 +203,7 @@ def main():
             "name": "Prince of Persia 2",
             "_comment": "The DOS game's keyboard, a button for each key the game reads in play. P1: the arrows, Shift (grab, careful step, pick up, drink; it also chooses the copy protection's symbol, as Enter does) and Ctrl (the sword; the spirit's spell). The game's commands: Pause (Esc) and Show Time (Space) - either also skips a story scene - Restart Level (Alt+A), Restart Game (Alt+R), Next Level (Alt+N), Sound On/Off (Alt+S), Music On/Off (Alt+M), Version (Alt+V). With the cheats setting on, the cheats: the DOS game's (Lose Hit Point Shift+K, Opponent Hit Point g, Kill Room k, Spirit Leaves Shift+S, More Time and Less Time keypad + and -, Flip Screen Shift+I, Show Room Shift+R, Add Max Hit Point Shift+T, Feather Fall Shift+W, Revive r, Demo Player F3) and SDLPoP2's own (God Mode Shift+G, Leave Body h, Leave Body Flame b, Sword z, Look Left/Right/Up/Down Alt+arrows, Teleport t, Fly A held). Left out: the game's saved games and its menus (Alt+G, Alt+L, Alt+O, Alt+H, Enter, Tab), Joystick Mode and Keyboard Mode (Alt+J, Alt+K), which mean nothing to a movie, and the letter keys; the hall of fame's name is the player_name setting, entered by the game itself. A key pressed is typed once; there is no key repeat.",
             "buttons": buttons(),
+            "mnemonics": mnemonics_for(buttons()),
         },
         "settings": [
             {

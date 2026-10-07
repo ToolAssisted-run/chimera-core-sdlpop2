@@ -115,6 +115,16 @@ and Munt's libmt32emu for the Roland MT-32.
   memory, so a savestate carries them. A project needs no file of its own: its
   file slot list is empty.
 
+## Using it in Chimera
+
+Chimera includes no cores and downloads none. Download the `.chimeraCore`
+package from this repository's
+[Releases](https://github.com/ToolAssisted-run/chimera-core-sdlpop2/releases)
+page, or build it, and put it in the `Cores` folder beside `Chimera.exe`;
+File > Core Manager lists it. The same file works on Linux and on Windows.
+The game's files and the MT-32's ROMs are yours to supply, as the project's
+firmware.
+
 ## Building
 
 ```
@@ -126,7 +136,12 @@ make -C waterbox -f guest.mk -j$(nproc)     # core.wbx
 
 miniBox is taken from `MB=`/`MINIBOX_DIR`, else `~/chimera/extern/chimera-common-minibox`;
 it must be built with its C++ guest toolchain (`build/meson-cpp`,
-`-Dguest_cpp=true`), since Munt is C++.
+`-Dguest_cpp=true`), since Munt is C++, as well as its host
+(`build/meson-linux`). `./waterbox/build-package.sh -r <chimera>` writes the
+package into a Chimera checkout's `build/Cores` instead.
+
+The build step by step, as CI does it: [docs/BUILDING.md](docs/BUILDING.md).
+For a coding agent: [AGENTS.md](AGENTS.md).
 
 ## Gate
 

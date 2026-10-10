@@ -66,9 +66,9 @@ def buttons():
 
 
 WHAT = {
-    "PRINCE.EXE": "the program, whose tables (the characters' animations, the rooms' drawing, the text) SDLPoP2 reads",
+    "PRINCE.EXE": "the program. SDLPoP2 reads its tables (the characters' animations, how the rooms are drawn and the text)",
     "SEQUENCE.DAT": "the animation sequences",
-    "PRINCE.DAT": "the pictures and texts every level shares, the levels themselves and the palettes",
+    "PRINCE.DAT": "the pictures and texts that all levels share, the levels themselves and the palettes",
     "KID.DAT": "the prince",
     "GUARD.DAT": "the guards",
     "HEAD.DAT": "the flying heads",
@@ -76,25 +76,25 @@ WHAT = {
     "BIRD.DAT": "the bird-headed guards",
     "FLAME.DAT": "the flames",
     "JINNEE.DAT": "the jinnee",
-    "ROOFTOPS.DAT": "the rooftop levels' walls and floors",
-    "DESERT.DAT": "the desert level's walls and floors",
-    "CAVERNS.DAT": "the caverns' walls and floors",
-    "RUINS.DAT": "the ruins' walls and floors",
-    "TEMPLE.DAT": "the temple's walls and floors",
-    "FINAL.DAT": "the final level's walls and floors",
+    "ROOFTOPS.DAT": "the walls and floors of the rooftop levels",
+    "DESERT.DAT": "the walls and floors of the desert level",
+    "CAVERNS.DAT": "the walls and floors of the caverns",
+    "RUINS.DAT": "the walls and floors of the ruins",
+    "TEMPLE.DAT": "the walls and floors of the temple",
+    "FINAL.DAT": "the walls and floors of the final level",
     "TRANS.DAT": "the transition scenes",
     "NIS.DAT": "the story scenes",
-    "NIS3VC.DAT": "the story scenes' pictures",
-    "DIGISND.DAT": "the Sound Blaster's digitized sounds",
+    "NIS3VC.DAT": "the pictures of the story scenes",
+    "DIGISND.DAT": "the digitized sounds for the Sound Blaster",
     "MIDISND.DAT": "the FM music",
-    "IBMSND.DAT": "the PC speaker's sounds",
-    "NISDIGI.DAT": "the story scenes' digitized sounds",
-    "NISMIDI.DAT": "the story scenes' FM music",
-    "NISIBM.DAT": "the story scenes' PC speaker sounds",
-    "PRESETS.DEF": "the FM instruments (the DOS setup copies the Sound Blaster Pro's here; on the install disks it is SNDDRVRS\\PRESET33.DEF). Needed whatever plays the music: the story scenes' timing is the FM driver's",
-    "PRESET40.DEF": "the Roland MT-32's timbres, a MIDI piece the start-up sends the MT-32 and waits for (the DOS setup copies it to PRESETS.DEF for that device; it is SNDDRVRS\\PRESET40.DEF on the CD and the install disks)",
-    "MT32_CONTROL.ROM": "no file of the game's: the Roland MT-32's control ROM, v1.07, dumped from a unit of the first generation",
-    "MT32_PCM.ROM": "no file of the game's: the Roland MT-32's PCM ROM, the one every MT-32 has",
+    "IBMSND.DAT": "the sounds for the PC speaker",
+    "NISDIGI.DAT": "the digitized sounds of the story scenes",
+    "NISMIDI.DAT": "the FM music of the story scenes",
+    "NISIBM.DAT": "the PC speaker sounds of the story scenes",
+    "PRESETS.DEF": "the FM instruments. The DOS setup program copies the Sound Blaster Pro's instruments to this file, and on the install disks it is SNDDRVRS\\PRESET33.DEF. It is needed whatever plays the music, because the timing of the story scenes comes from the FM driver",
+    "PRESET40.DEF": "the instrument sounds (timbres) for the Roland MT-32. It is a piece of MIDI data that the game sends to the MT-32 when it starts, and the game waits until that is done. The DOS setup program copies it to PRESETS.DEF for that device, and on the CD and the install disks it is SNDDRVRS\\PRESET40.DEF",
+    "MT32_CONTROL.ROM": "the control ROM of the Roland MT-32, version 1.07, copied from a first-generation unit",
+    "MT32_PCM.ROM": "the PCM ROM of the Roland MT-32, which is the same in every MT-32",
 }
 
 
@@ -151,12 +151,12 @@ def main():
         which = "/".join(names[v] for v in reversed(releases)) if releases != everyone else ""
         if name.endswith(".ROM"):
             display = "Roland MT-32 %s ROM" % ("control" if "CONTROL" in name else "PCM")
-            desc = "%s: %s. Yours to supply, when the music is the Roland MT-32's - the package carries none of it. Another MT-32 ROM Munt knows may take its place (the project pins its hash)." % (name, WHAT[name])
+            desc = "%s is not one of the game's files. It is %s. You have to supply it when the music is played by the Roland MT-32. The package contains no ROM. Another MT-32 ROM that Munt (the MT-32 emulator used here) knows can be used instead, and the project records exactly which file it was." % (name, WHAT[name])
         else:
             display = "Prince of Persia 2 %s%s" % (which + " " if which else "", name)
-            desc = "%s of Prince of Persia 2 %s(DOS): %s. Yours to supply%s - the package carries none of the game's data. A file of your own (a modified one) may take its place: the project pins its hash.%s" % (
-                name, which + " " if which else "", WHAT[name], ", when the music is the Roland MT-32's" if roland else "",
-                " The uncracked program's hash; a cracked copy plays the same (only the copy protection's code differs, which SDLPoP2 does not run)." if name == "PRINCE.EXE" and releases != ["1.1"] else "")
+            desc = "%s of Prince of Persia 2 %s(DOS): %s. You have to supply it%s. The package contains none of the game's data. A modified file of your own can be used instead, and the project records exactly which file it was.%s" % (
+                name, which + " " if which else "", WHAT[name], " when the music is played by the Roland MT-32" if roland else "",
+                " The file expected here is the program without a crack. A cracked copy plays the same, because only the copy protection's code differs and SDLPoP2 does not run that code." if name == "PRINCE.EXE" and releases != ["1.1"] else "")
         decl = {"id": name, "display": display, "description": desc, "size": size, "sha1": sha1, "name": name}
         conds = []
         if releases != everyone:
@@ -212,7 +212,17 @@ def main():
                 "type": "enum",
                 "options": [v for v, _, _ in RELEASES],
                 "default": "1.1",
-                "description": "The DOS release played, whose files the project brings (SDLPoP2's docs/VERSIONS.md): 1.1, the Prince of Persia Collection CD's, which SDLPoP2 is rebuilt from; 1.0; or the initial release (ir). They differ in movement near walls and gates, the guards, the spirit, levels 2, 5, 8 and 14, the timers and random numbers, and a few story scenes. 1.0 and 1.1 have the same data files and differ in PRINCE.EXE; the initial release's files are its own (twelve of them differ), and its cheat word is makinit.",
+                "description": "Which DOS release of the game is played. The project "
+                    "supplies that release's files (see SDLPoP2's "
+                    "docs/VERSIONS.md). '1.1' is the release on the Prince "
+                    "of Persia Collection CD, which SDLPoP2 is rebuilt from."
+                    " The others are '1.0' and the initial release ('ir'). "
+                    "The releases differ in movement near walls and gates, "
+                    "the guards, the spirit, levels 2, 5, 8 and 14, the "
+                    "timers and random numbers, and a few story scenes. 1.0 "
+                    "and 1.1 have the same data files and differ only in "
+                    "PRINCE.EXE. The initial release has files of its own "
+                    "(twelve of them differ), and its cheat word is makinit.",
             },
             {
                 "name": "music",
@@ -220,7 +230,27 @@ def main():
                 "type": "enum",
                 "options": ["roland", "fm", "speaker"],
                 "default": "roland",
-                "description": "What plays the sound: the music on a Roland MT-32 on an MPU-401 (roland, the default), the setup's \"Roland MT-32/LAPC-1/CM-32L\", or on the Sound Blaster Pro's FM chip (fm), as the original setup chose - either way with the Sound Blaster's digitized sounds; or the PC speaker alone (speaker), the game's own speaker player and its sounds (IBMSND.DAT, NISIBM.DAT). The game knows which: with the speaker it answers \"Music Unavailable\", plays no ambient music and waits on a death or a level's end as long as the speaker's sounds last, as the original on that machine did (the story scenes' timing is still the card's). The MT-32 needs the setup's PRESET40.DEF and an MT-32's two ROMs (v1.07), which the project brings as firmware; its game starts 9.35 s later, as the original did, while the start-up sends the MT-32 its timbres - so a movie plays on the music device it was made with.",
+                "description": "What plays the sound. 'roland' (the default) plays the "
+                    "music on a Roland MT-32 connected to an MPU-401, which "
+                    "the game's setup program calls \"Roland "
+                    "MT-32/LAPC-1/CM-32L\". 'fm' plays it on the FM chip of "
+                    "the Sound Blaster Pro, which is what the original setup"
+                    " program chose. Both use the Sound Blaster's digitized "
+                    "sounds. 'speaker' uses the PC speaker alone, with the "
+                    "game's own speaker player and speaker sounds "
+                    "(IBMSND.DAT, NISIBM.DAT). The game knows which device "
+                    "it has. With the speaker it answers \"Music "
+                    "Unavailable\", plays no background music, and waits "
+                    "after a death or at the end of a level for as long as "
+                    "the speaker's sounds last, as the original did on such "
+                    "a machine. The timing of the story scenes is still the "
+                    "sound card's. The MT-32 needs the setup program's "
+                    "PRESET40.DEF and the two ROMs of an MT-32 (version "
+                    "1.07), which the project supplies as firmware. With it "
+                    "the game starts 9.35 seconds later, as the original "
+                    "did, while the instrument sounds are sent to the MT-32."
+                    " So a movie plays back only with the sound device it "
+                    "was made with.",
             },
             {
                 "name": "random_seed",
@@ -229,28 +259,47 @@ def main():
                 "default": 0,
                 "min": 0,
                 "max": 2147483647,
-                "description": "The seed of the game's random number generator at start (the DOS program took it from the clock). A movie records the number it ran with.",
+                "description": "The starting value (seed) of the game's random number "
+                    "generator. The DOS program took it from the clock. A "
+                    "movie records the number it ran with.",
             },
             {
                 "name": "player_name",
                 "display": "Player Name (Hall of Fame)",
                 "type": "string",
                 "default": "Chimera",
-                "description": "The name a won game enters in the hall of fame, when its time earns a place there - typed into the game's own editor as the keys would have typed it (the characters the font has, as many as the box holds, up to 24). There are no letter keys: the game enters it by itself.",
+                "description": "The name that a won game enters in the hall of fame "
+                    "when its time earns a place there. The game types it "
+                    "into its own name editor, as the keys would have typed "
+                    "it. Only the characters in the game's font are used, "
+                    "and only as many as fit in the box (24 at most). The "
+                    "controls have no letter keys, so the game enters the "
+                    "name by itself.",
             },
             {
                 "name": "cheats",
                 "display": "Enable Cheats",
                 "type": "bool",
                 "default": False,
-                "description": "Start the program with the cheat word on its command line (yippeeyahoo; the initial release's makinit), as the original allowed: the cheats' buttons exist only with this on (the DOS game's cheats and SDLPoP2's own), and Next Level (Alt+N) reaches any level.",
+                "description": "Starts the program with the cheat word on its command "
+                    "line (yippeeyahoo, or makinit for the initial release),"
+                    " as the original allowed. The cheat buttons exist only "
+                    "when this is on. They cover the DOS game's cheats and "
+                    "SDLPoP2's own. Next Level (Alt+N) can then reach any "
+                    "level.",
             },
             {
                 "name": "igt_from_level_1",
                 "display": "IGT From Level 1",
                 "type": "bool",
                 "default": True,
-                "description": "The in-game time (IGT, the project's GameTime) counts from the very beginning of level 1. The game's own clock stays stopped until the first story scene after level 4, so without this the levels before it count nothing; with it their ticks of play are added, counted as the clock counts them (while the prince lives). Changes nothing in the game.",
+                "description": "Makes the in-game time (IGT, the project's GameTime) "
+                    "count from the very beginning of level 1. The game's "
+                    "own clock stays stopped until the first story scene "
+                    "after level 4, so without this setting the levels "
+                    "before it add nothing. With it, their ticks of play are"
+                    " added, counted the way the clock counts them (while "
+                    "the prince is alive). It changes nothing in the game.",
             },
         ] + ini_settings(),
         "firmware": firmware,

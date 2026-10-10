@@ -44,7 +44,9 @@ and Munt's libmt32emu for the Roland MT-32.
   commands - Pause (Esc) and Show Time (Space), either of which also skips a
   story scene, Restart Level (Alt+A), Restart Game (Alt+R), Next Level
   (Alt+N), Sound On/Off (Alt+S), Music On/Off (Alt+M) and Version (Alt+V).
-  A button held is a key held
+  Music On/Off, switching the music off, stops the piece that is playing, the
+  level-end music too, and the level's wait for that music ends there, as in
+  DOS. A button held is a key held
   down; a button pressed is that key typed, once - there is no key repeat. The
   game's saved games and its menus (Alt+G, Alt+L, Alt+O, Alt+H, Enter, Tab),
   Joystick Mode and Keyboard Mode (Alt+J, Alt+K), which mean nothing to a movie,

@@ -388,6 +388,12 @@ static int gate_run(const struct gate_core *c, const struct gate_opts *o)
 			FILE *af = gate_fopen(o->audioOut, f == 0 ? "wb" : "ab");
 			if (af) { fwrite(audio, 2 * sizeof(int16_t), (size_t)n, af); fclose(af); }
 		}
+		{   /* (local, for the videos: GATE_RAWVIDEO takes each frame as a BGRA picture, GATE_RAWDUR a line "w h num den samples") */
+			static FILE *rv, *rd; static int rinit;
+			if (!rinit) { rinit = 1; const char *p = getenv("GATE_RAWVIDEO"), *q = getenv("GATE_RAWDUR"); rv = p ? fopen(p, "wb") : NULL; rd = q ? fopen(q, "w") : NULL; }
+			if (rv) { fwrite(video, 4, (size_t)w * h, rv); fflush(rv); }
+			if (rd) { fprintf(rd, "%d %d %d %d %d\n", w, h, num, den, n); fflush(rd); }
+		}
 		if (!read)
 			lag++;
 		if (trace)

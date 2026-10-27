@@ -40,7 +40,7 @@ On Ubuntu, as CI does:
 
 ```
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libegl-dev libx11-dev libxext-dev libasound2-dev
+sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 libgl1-mesa-dev libegl-dev libx11-dev libxext-dev libasound2-dev
 ```
 
 The sources, each with its submodules (`<chimera>` is the Chimera checkout):
@@ -88,10 +88,10 @@ make -C waterbox -f guest.mk -j"$(nproc)"     # build/guest/core.wbx
 ## Install the core into Chimera
 
 Chimera includes no cores and downloads nothing. A core is a file in its
-`Cores` folder: `<chimera>/build/Cores/` in a source checkout (where
-`build-package.sh -r <chimera>` writes), the `Cores` folder beside
-`Chimera.exe` in a release bundle, or the folder chosen in
-File > Core Manager > Change folder... File > Core Manager lists the folder;
+`cores` folder: `<chimera>/build/Cores/` in a source checkout (where
+`build-package.sh -r <chimera>` writes), the `cores` folder beside
+Chimera's program in a release bundle, or the folder chosen in
+Tools > Core Manager... > Change folder... Tools > Core Manager... lists the folder;
 Refresh List rescans it.
 
 ## Test before you commit

@@ -122,8 +122,8 @@ and Munt's libmt32emu for the Roland MT-32.
 Chimera includes no cores and downloads none. Download the `.chimeraCore`
 package from this repository's
 [Releases](https://github.com/ToolAssisted-run/chimera-core-sdlpop2/releases)
-page, or build it, and put it in the `Cores` folder beside `Chimera.exe`;
-File > Core Manager lists it. The same file works on Linux and on Windows.
+page, or build it, and put it in the `cores` folder beside Chimera's program;
+Tools > Core Manager... lists it. The same file works on Linux and on Windows.
 The game's files and the MT-32's ROMs are yours to supply, as the project's
 firmware.
 

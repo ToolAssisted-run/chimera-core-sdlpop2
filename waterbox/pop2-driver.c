@@ -40,6 +40,11 @@
 #include "shell.h"
 #include "version.h"
 
+/* A text a person reads is a key of languages/en.json, each of its
+ * arguments after a TEXT_ARG (chimera docs/translations.md). TEXT_ARG is a
+ * string of its own so the byte after it is never read as more of its hex. */
+#define TEXT_ARG "\x1f"
+
 /* ------------------------------------------------------------ the game's files */
 
 typedef struct
@@ -285,14 +290,14 @@ static int mt32_open(char *err, int errsize)
 		 * as long as the machine */
 		if (n < 0 || mt32emu_add_rom_data(g_mt32, data, (size_t)n, NULL) < 0)
 		{
-			snprintf(err, (size_t)errsize, "the MT-32 did not take %s", roms[i]);
+			snprintf(err, (size_t)errsize, "error.mt32_rom" TEXT_ARG "%s", roms[i]);
 			return 0;
 		}
 	}
 	mt32emu_set_stereo_output_samplerate(g_mt32, POP2_AUDIO_RATE);
 	if (mt32emu_open_synth(g_mt32) != MT32EMU_RC_OK)
 	{
-		snprintf(err, (size_t)errsize, "the MT-32 could not start");
+		snprintf(err, (size_t)errsize, "error.mt32_start");
 		return 0;
 	}
 	return 1;
@@ -345,7 +350,7 @@ static int apply_settings(char *err, int errsize)
 		if (v == st->dflt) continue;
 		if (!st->is_bool && (v < st->lo || v > st->hi))
 		{
-			snprintf(err, (size_t)errsize, "the setting %s is %ld; it goes from %ld to %ld", st->name, v, st->lo, st->hi);
+			snprintf(err, (size_t)errsize, "error.out_of_range" TEXT_ARG "%s" TEXT_ARG "%ld" TEXT_ARG "%ld" TEXT_ARG "%ld", st->name, v, st->lo, st->hi);
 			return -1;
 		}
 		if (strcmp(section, st->section))
@@ -363,7 +368,7 @@ static int apply_settings(char *err, int errsize)
 	settings_defaults(&g.settings);
 	if (settings_parse_text(&g.settings, ini, "the project's settings", NULL) != 0)
 	{
-		snprintf(err, (size_t)errsize, "SDLPoP2 did not take the project's settings:\n%s", ini);
+		snprintf(err, (size_t)errsize, "error.settings_refused" TEXT_ARG "%s", ini);
 		return -1;
 	}
 	pop2_settings_game = &g.settings;
@@ -389,8 +394,7 @@ static int check_files(const pop2_file *files, int count, int release, char *err
 		FILE *fp = fopen(f->name, "rb");
 		if (!fp)
 		{
-			snprintf(err, (size_t)errsize, "Prince of Persia 2 needs %s%s - add it as the project's firmware.", f->name,
-				files == k_roland_files ? " for the Roland MT-32's music" : "");
+			snprintf(err, (size_t)errsize, files == k_roland_files ? "error.needs_file_mt32" TEXT_ARG "%s" : "error.needs_file" TEXT_ARG "%s", f->name);
 			return 0;
 		}
 		fclose(fp);
@@ -436,7 +440,7 @@ int pop2drv_init(char *err, int errsize)
 	else if (!strcmp(music, "speaker")) g.speaker = 1;
 	else if (strcmp(music, "fm"))
 	{
-		snprintf(err, (size_t)errsize, "the music setting is %s; it is roland, fm or speaker", music);
+		snprintf(err, (size_t)errsize, "error.bad_music" TEXT_ARG "%s", music);
 		return 0;
 	}
 	/* the release (the package's machines): SDLPoP2 plays each as it was,
@@ -449,7 +453,7 @@ int pop2drv_init(char *err, int errsize)
 	else if (!strcmp(version, "ir")) release = R_IR, game_version = POP2_VER_IR;
 	else
 	{
-		snprintf(err, (size_t)errsize, "the version setting is %s; it is 1.1, 1.0 or ir", version);
+		snprintf(err, (size_t)errsize, "error.bad_version" TEXT_ARG "%s", version);
 		return 0;
 	}
 	if (!check_files(k_files, POP2_FILE_COUNT, release, err, errsize)) return 0;
@@ -462,7 +466,7 @@ int pop2drv_init(char *err, int errsize)
 	for (const char *c = g.player_name; *c; c++) printable |= *c > 0x20 && *c < 0x7F;
 	if (!printable)
 	{
-		snprintf(err, (size_t)errsize, "the Player Name (Hall of Fame) setting has nothing the game can show - give it a name");
+		snprintf(err, (size_t)errsize, "error.no_player_name");
 		return 0;
 	}
 
@@ -490,12 +494,12 @@ int pop2drv_init(char *err, int errsize)
 	if (!audio_init_midi(".", g.speaker ? SOUND_DEVICE_SPEAKER : SOUND_DEVICE_FM_DIGITAL, g.roland ? AUDIO_MIDI_MT32 : AUDIO_MIDI_FM,
 		g.roland ? "PRESET40.DEF" : NULL))
 	{
-		snprintf(err, (size_t)errsize, "SDLPoP2 could not load the sound files.");
+		snprintf(err, (size_t)errsize, "error.no_sounds");
 		return 0;
 	}
 	if (g.roland && !audio_setup_playing())
 	{
-		snprintf(err, (size_t)errsize, "SDLPoP2 did not take PRESET40.DEF as the MT-32's timbres.");
+		snprintf(err, (size_t)errsize, "error.preset40");
 		return 0;
 	}
 	audio_add_scene_files(".");
@@ -514,7 +518,7 @@ int pop2drv_init(char *err, int errsize)
 	if (!shell_init(".", cheats ? 1 : 0, words))
 	{
 		/* the files are another release's (its reason), or not the game's */
-		snprintf(err, (size_t)errsize, "%s", shell_init_error() ? shell_init_error() : "SDLPoP2 could not load the game.");
+		snprintf(err, (size_t)errsize, "%s", shell_init_error() ? shell_init_error() : "error.not_loaded");
 		return 0;
 	}
 	return 1;

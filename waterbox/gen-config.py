@@ -13,20 +13,43 @@ import os
 import re
 import sys
 
+# ---- the texts a person reads ----------------------------------------------
+# Every one is a key of languages/en.json (chimera docs/translations.md):
+# text() records the key's English and returns the key, each of its
+# arguments after it behind a 0x1F; write_texts() puts them in the table,
+# beside the keys the core's code names.
+TEXTS = {}
+
+
+def text(key, english, *args):
+    if TEXTS.setdefault(key, english) != english:
+        sys.exit("%s has two texts: %r and %r" % (key, TEXTS[key], english))
+    return "\x1f".join([key] + [str(a) for a in args])
+
+
+def write_texts(path):
+    table = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {"texts": {}}
+    table["texts"].update(TEXTS)
+    table["texts"] = dict(sorted(table["texts"].items()))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(table, f, indent="\t", ensure_ascii=False)
+        f.write("\n")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def ini_settings():
-    text = open(os.path.join(HERE, "settings.inc")).read()
+    source = open(os.path.join(HERE, "settings.inc")).read()
     out = []
-    for m in re.finditer(r'POP2_SETTING\((\w+), (BOOL|INT), "(\w+)", (-?\d+), (-?\d+), (-?\d+), "([^"]*)",\s*"([^"]*)"\)', text):
+    for m in re.finditer(r'POP2_SETTING\((\w+), (BOOL|INT), "(\w+)", (-?\d+), (-?\d+), (-?\d+), "([^"]*)",\s*"([^"]*)"\)', source):
         name, kind, _section, dflt, lo, hi, display, desc = m.groups()
-        s = {"name": name, "display": display}
+        s = {"name": name, "display": text("setting." + name.lower(), display)}
         if kind == "BOOL":
             s.update({"type": "bool", "default": dflt == "1"})
         else:
             s.update({"type": "int", "default": int(dflt), "min": int(lo), "max": int(hi)})
-        s["description"] = desc
+        s["description"] = text("setting." + name.lower() + ".about", desc)
         out.append(s)
     return out
 
@@ -44,10 +67,10 @@ def game_files():
     """(name, size, sha1, roland, releases): the files pop2-driver.c checks at
     Init - its k_files, always, and its k_roland_files, when the music is the
     MT-32's - each with the releases (version setting values) it belongs to."""
-    text = open(os.path.join(HERE, "pop2-driver.c")).read()
-    split = text.index("k_roland_files[] = {")
+    source = open(os.path.join(HERE, "pop2-driver.c")).read()
+    split = source.index("k_roland_files[] = {")
     out = []
-    for m in re.finditer(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF|ROM))", (\d+), "([0-9A-F]{40})", (R_\w+) \}', text):
+    for m in re.finditer(r'\{ "([A-Z0-9_]+\.(?:DAT|EXE|DEF|ROM))", (\d+), "([0-9A-F]{40})", (R_\w+) \}', source):
         mask = MASKS[m.group(4)]
         out.append((m.group(1), int(m.group(2)), m.group(3), m.start() > split, [v for v, bit, _ in RELEASES if mask & bit]))
     return out
@@ -55,8 +78,8 @@ def game_files():
 
 def buttons():
     """The input.buttons names, in the driver's enum order (pop2-driver.h)."""
-    text = open(os.path.join(HERE, "pop2-driver.h")).read()
-    enum = text[text.index("enum Pop2Button"):text.index("POP2_BTN_COUNT")]
+    source = open(os.path.join(HERE, "pop2-driver.h")).read()
+    enum = source[source.index("enum Pop2Button"):source.index("POP2_BTN_COUNT")]
     enum = re.sub(r"/\*.*?\*/", "", enum, flags=re.S)
     syms = [s for s in re.findall(r"^\s*POP2_BTN_(\w+)(?:\s*=[^,]*)?,", enum, re.M) if s != "CHEAT_FIRST"]
     special = {"UP": "P1 Up", "DOWN": "P1 Down", "LEFT": "P1 Left", "RIGHT": "P1 Right", "SHIFT": "P1 Shift",
@@ -149,14 +172,29 @@ def main():
     names = {"1.1": "1.1", "1.0": "1.0", "ir": "initial release"}
     for name, size, sha1, roland, releases in game_files():
         which = "/".join(names[v] for v in reversed(releases)) if releases != everyone else ""
+        what = text("firmware.what." + re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_"), WHAT[name])
+        # a text each, a line each (chimera docs/translations.md)
         if name.endswith(".ROM"):
-            display = "Roland MT-32 %s ROM" % ("control" if "CONTROL" in name else "PCM")
-            desc = "%s is not one of the game's files. It is %s. You have to supply it when the music is played by the Roland MT-32. The package contains no ROM. Another MT-32 ROM that Munt (the MT-32 emulator used here) knows can be used instead, and the project records exactly which file it was." % (name, WHAT[name])
+            display = text("firmware.mt32_control", "Roland MT-32 control ROM") if "CONTROL" in name else \
+                text("firmware.mt32_pcm", "Roland MT-32 PCM ROM")
+            desc = text("firmware.mt32.about", "%1 is not one of the game's files. It is %2. You have to supply it when the music is "
+                        "played by the Roland MT-32. The package contains no ROM. Another MT-32 ROM that Munt (the MT-32 "
+                        "emulator used here) knows can be used instead, and the project records exactly which file it was.",
+                        name, what)
         else:
-            display = "Prince of Persia 2 %s%s" % (which + " " if which else "", name)
-            desc = "%s of Prince of Persia 2 %s(DOS): %s. You have to supply it%s. The package contains none of the game's data. A modified file of your own can be used instead, and the project records exactly which file it was.%s" % (
-                name, which + " " if which else "", WHAT[name], " when the music is played by the Roland MT-32" if roland else "",
-                " The file expected here is the program without a crack. A cracked copy plays the same, because only the copy protection's code differs and SDLPoP2 does not run that code." if name == "PRINCE.EXE" and releases != ["1.1"] else "")
+            release = text("release." + re.sub(r"[^a-z0-9]+", "_", which.lower()).strip("_"), which) if which else ""
+            display = text("firmware.data_file_release", "Prince of Persia 2 %1 %2", release, name) if which else \
+                text("firmware.data_file", "Prince of Persia 2 %1", name)
+            lines = [text("firmware.data_file_release.about", "%1 of Prince of Persia 2 %2 (DOS): %3.", name, release, what) if which
+                     else text("firmware.data_file.about", "%1 of Prince of Persia 2 (DOS): %2.", name, what),
+                     text("firmware.supply_mt32", "You have to supply it when the music is played by the Roland MT-32.") if roland
+                     else text("firmware.supply", "You have to supply it."),
+                     text("firmware.no_data", "The package contains none of the game's data. A modified file of your own can be "
+                          "used instead, and the project records exactly which file it was.")]
+            if name == "PRINCE.EXE" and releases != ["1.1"]:
+                lines.append(text("firmware.uncracked", "The file expected here is the program without a crack. A cracked copy "
+                                  "plays the same, because only the copy protection's code differs and SDLPoP2 does not run that code."))
+            desc = "\x1d".join(lines)
         decl = {"id": name, "display": display, "description": desc, "size": size, "sha1": sha1, "name": name}
         conds = []
         if releases != everyone:
@@ -208,11 +246,11 @@ def main():
         "settings": [
             {
                 "name": "version",
-                "display": "Version",
+                "display": text("setting.version", "Version"),
                 "type": "enum",
                 "options": [v for v, _, _ in RELEASES],
                 "default": "1.1",
-                "description": "Which DOS release of the game is played. The project "
+                "description": text("setting.version.about", "Which DOS release of the game is played. The project "
                     "supplies that release's files (see SDLPoP2's "
                     "docs/VERSIONS.md). '1.1' is the release on the Prince "
                     "of Persia Collection CD, which SDLPoP2 is rebuilt from."
@@ -222,15 +260,15 @@ def main():
                     "timers and random numbers, and a few story scenes. 1.0 "
                     "and 1.1 have the same data files and differ only in "
                     "PRINCE.EXE. The initial release has files of its own "
-                    "(twelve of them differ), and its cheat word is makinit.",
+                    "(twelve of them differ), and its cheat word is makinit."),
             },
             {
                 "name": "music",
-                "display": "Sound Device",
+                "display": text("setting.music", "Sound Device"),
                 "type": "enum",
                 "options": ["roland", "fm", "speaker"],
                 "default": "roland",
-                "description": "What plays the sound. 'roland' (the default) plays the "
+                "description": text("setting.music.about", "What plays the sound. 'roland' (the default) plays the "
                     "music on a Roland MT-32 connected to an MPU-401, which "
                     "the game's setup program calls \"Roland "
                     "MT-32/LAPC-1/CM-32L\". 'fm' plays it on the FM chip of "
@@ -250,56 +288,56 @@ def main():
                     "the game starts 9.35 seconds later, as the original "
                     "did, while the instrument sounds are sent to the MT-32."
                     " So a movie plays back only with the sound device it "
-                    "was made with.",
+                    "was made with."),
             },
             {
                 "name": "random_seed",
-                "display": "Random seed",
+                "display": text("setting.random_seed", "Random seed"),
                 "type": "int",
                 "default": 0,
                 "min": 0,
                 "max": 2147483647,
-                "description": "The starting value (seed) of the game's random number "
+                "description": text("setting.random_seed.about", "The starting value (seed) of the game's random number "
                     "generator. The DOS program took it from the clock. A "
-                    "movie records the number it ran with.",
+                    "movie records the number it ran with."),
             },
             {
                 "name": "player_name",
-                "display": "Player Name (Hall of Fame)",
+                "display": text("setting.player_name", "Player Name (Hall of Fame)"),
                 "type": "string",
                 "default": "Chimera",
-                "description": "The name that a won game enters in the hall of fame "
+                "description": text("setting.player_name.about", "The name that a won game enters in the hall of fame "
                     "when its time earns a place there. The game types it "
                     "into its own name editor, as the keys would have typed "
                     "it. Only the characters in the game's font are used, "
                     "and only as many as fit in the box (24 at most). The "
                     "controls have no letter keys, so the game enters the "
-                    "name by itself.",
+                    "name by itself."),
             },
             {
                 "name": "cheats",
-                "display": "Enable Cheats",
+                "display": text("setting.cheats", "Enable Cheats"),
                 "type": "bool",
                 "default": False,
-                "description": "Starts the program with the cheat word on its command "
+                "description": text("setting.cheats.about", "Starts the program with the cheat word on its command "
                     "line (yippeeyahoo, or makinit for the initial release),"
                     " as the original allowed. The cheat buttons exist only "
                     "when this is on. They cover the DOS game's cheats and "
                     "SDLPoP2's own. Next Level (Alt+N) can then reach any "
-                    "level.",
+                    "level."),
             },
             {
                 "name": "igt_from_level_1",
-                "display": "IGT From Level 1",
+                "display": text("setting.igt_from_level_1", "IGT From Level 1"),
                 "type": "bool",
                 "default": True,
-                "description": "Makes the in-game time (IGT, the project's GameTime) "
+                "description": text("setting.igt_from_level_1.about", "Makes the in-game time (IGT, the project's GameTime) "
                     "count from the very beginning of level 1. The game's "
                     "own clock stays stopped until the first story scene "
                     "after level 4, so without this setting the levels "
                     "before it add nothing. With it, their ticks of play are"
                     " added, counted the way the clock counts them (while "
-                    "the prince is alive). It changes nothing in the game.",
+                    "the prince is alive). It changes nothing in the game."),
             },
         ] + ini_settings(),
         "firmware": firmware,
@@ -307,6 +345,7 @@ def main():
     with open(out, "w") as f:
         json.dump(cfg, f, indent=2)
         f.write("\n")
+    write_texts(os.path.join(os.path.dirname(os.path.abspath(out)), "languages", "en.json"))
 
 
 if __name__ == "__main__":

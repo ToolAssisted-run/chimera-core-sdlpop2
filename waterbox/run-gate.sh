@@ -145,7 +145,7 @@ workdir() {
 # ------------------------------------------------------------------ 3. no files
 wd="$work/nofiles"; mkdir -p "$wd"; printf '{}' > "$wd/settings"
 boxed "$wd" --frames 1 > "$work/nofiles.txt" 2>/dev/null
-if grep -qx 'loadError=Prince of Persia 2 needs PRINCE.EXE - add it as the project.s firmware.' "$work/nofiles.txt"; then
+if grep -qx 'loadError=error.needs_file.PRINCE.EXE' "$work/nofiles.txt"; then
 	report "refuse:no-files" PASS "$(sed -n 's/^loadError=//p' "$work/nofiles.txt")"
 else
 	report "refuse:no-files" FAIL "$(head -1 "$work/nofiles.txt")"
@@ -161,7 +161,7 @@ fi
 wd="$(workdir refuse-missing '{}')"; rm "$wd/KID.DAT"
 boxed "$wd" --frames 1 > "$work/r1.txt" 2>/dev/null
 native "$wd" --frames 1 > "$work/r1n.txt" 2>/dev/null
-if grep -qx 'loadError=Prince of Persia 2 needs KID.DAT - add it as the project.s firmware.' "$work/r1.txt" && cmp -s <(grep loadError "$work/r1.txt") <(grep loadError "$work/r1n.txt"); then
+if grep -qx 'loadError=error.needs_file.KID.DAT' "$work/r1.txt" && cmp -s <(grep loadError "$work/r1.txt") <(grep loadError "$work/r1n.txt"); then
 	report "refuse:missing-file" PASS "$(sed -n 's/^loadError=//p' "$work/r1.txt")"
 else
 	report "refuse:missing-file" FAIL "$(grep -m1 . "$work/r1.txt")"
@@ -514,7 +514,7 @@ EOF
 	rm "$wd/PRESET40.DEF"
 	boxed "$wd" --frames 1 > "$work/mt0.txt" 2>/dev/null
 	if [ -n "$dflt" ] && [ "$dflt" = "$named" ] && [ "$(echo "$dflt" | sed -n 's/^midiBytes=//p')" -gt 19934 ] &&
-	   grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt0.txt"; then
+	   grep -qx "loadError=error.needs_file_mt32.PRESET40.DEF" "$work/mt0.txt"; then
 		report "mt32:default" PASS "no music setting: the MT-32 ($(echo "$dflt" | sed -n 's/^midiBytes=//p') bytes by step 700, as music roland), and its files asked for"
 	else
 		report "mt32:default" FAIL "default [$(echo $dflt)] roland [$(echo $named)]; $(grep -m1 . "$work/mt0.txt")"
@@ -527,9 +527,9 @@ EOF
 	boxed "$wd" --frames 1 > "$work/mt2.txt" 2>/dev/null
 	wd="$(workdir mt-bad '{"music":"mt32"}')"
 	boxed "$wd" --frames 1 > "$work/mt3.txt" 2>/dev/null
-	if grep -qx "loadError=Prince of Persia 2 needs PRESET40.DEF for the Roland MT-32's music - add it as the project's firmware." "$work/mt1.txt" &&
-	   grep -qx "loadError=the MT-32 did not take MT32_CONTROL.ROM" "$work/mt2.txt" &&
-	   grep -qx "loadError=the music setting is mt32; it is roland, fm or speaker" "$work/mt3.txt"; then
+	if grep -qx "loadError=error.needs_file_mt32.PRESET40.DEF" "$work/mt1.txt" &&
+	   grep -qx "loadError=error.mt32_rom.MT32_CONTROL.ROM" "$work/mt2.txt" &&
+	   grep -qx "loadError=error.bad_music.mt32" "$work/mt3.txt"; then
 		report "mt32:refusals" PASS "no PRESET40.DEF: named; a damaged control ROM: Munt does not take it; an unknown music setting: refused"
 	else
 		report "mt32:refusals" FAIL "$(grep -h loadError "$work"/mt[123].txt | tr '\n' ' ' | head -c 200)"
@@ -634,7 +634,7 @@ png hofname
 wd="$(workdir hofblank '{"player_name":"   "}')"
 boxed "$wd" --frames 1 > "$work/hofblank.txt" 2>/dev/null
 if [ "$(tail -c +3 "$work/hof.bin" 2>/dev/null | head -c 27 | tr -d '\0')" = "Chimera" ] && [ "$(at "$work/hofname.trace" 699 1)" = "1" ] &&
-   [ "$(at "$work/hofname.trace" 699 2)" = "75" ] && grep -q "^loadError=the Player Name (Hall of Fame) setting has nothing the game can show" "$work/hofblank.txt"; then
+   [ "$(at "$work/hofname.trace" 699 2)" = "75" ] && grep -q "^loadError=error.no_player_name" "$work/hofblank.txt"; then
 	report "settings:player-name" PASS "a won game (75 minutes left) enters Chimera, the default name, in the hall of fame by itself (build/gate/hofname.png); a blank one is refused"
 else
 	report "settings:player-name" FAIL "name [$(tail -c +3 "$work/hof.bin" 2>/dev/null | head -c 27 | tr -d '\0')], count $(at "$work/hofname.trace" 699 1), minutes $(at "$work/hofname.trace" 699 2); $(grep -m1 . "$work/hofblank.txt")"

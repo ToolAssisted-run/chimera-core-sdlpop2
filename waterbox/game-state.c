@@ -194,22 +194,22 @@ static void char_fields(const char *prefix, const char *dom, const char *group, 
 		snprintf(extra, sizeof extra, "%s%s%s", arr, arr[0] && (more)[0] ? ", " : "", more); \
 		prop(name, dom, off, type, group, extra);                                        \
 	} while (0)
-	F("X", 2, "s16", "\"description\": \"Across the screen, in the game's units\"");
-	F("Y", 4, "s16", "\"description\": \"Down the screen, in the game's units\"");
+	F("X", 2, "s16", "\"description\": \"property.x\"");
+	F("Y", 4, "s16", "\"description\": \"property.y\"");
 	F("Direction", 1, "s8", "\"values\": { \"-1\": \"Left\", \"0\": \"Right\" }");
-	F("Frame", 7, "u16", "\"description\": \"The animation frame shown (PoP1's numbering)\"");
+	F("Frame", 7, "u16", "\"description\": \"property.frame\"");
 	F("Column", 9, "s8", "");
 	F("Row", 10, "s8", "");
 	F("Action", 11, "u8", "");
 	F("Fall X", 12, "s8", "");
 	F("Fall Y", 13, "s8", "");
 	F("Room", 14, "u8", "");
-	F("Alive", 17, "s8", "\"description\": \"Below 0 while alive; counts up once dying\"");
-	F("HP", 18, "u8", "\"description\": \"Hit points\"");
-	F("Max HP", 19, "u8", "\"description\": \"The hit points a full potion gives back to\"");
-	F("HP Delta", 20, "s8", "\"description\": \"A pending change of hit points\"");
+	F("Alive", 17, "s8", "\"description\": \"property.alive\"");
+	F("HP", 18, "u8", "\"description\": \"property.hp\"");
+	F("Max HP", 19, "u8", "\"description\": \"property.max_hp\"");
+	F("HP Delta", 20, "s8", "\"description\": \"property.hp_delta\"");
 	F("Sequence Position", 21, "u16", "");
-	F("Sequence", 23, "u16", "\"description\": \"The animation sequence playing\"");
+	F("Sequence", 23, "u16", "\"description\": \"property.sequence\"");
 	F("Character Id", 6, "u8", "");
 #undef F
 }
@@ -222,19 +222,19 @@ static void table_init(void)
 	add("{ \"gameTimer\": \"IGT Ms\", \"properties\": [");
 
 	/* the Game State block */
-	prop("Level", "Game State", 0, "u8", "Game", "\"writable\": false, \"description\": \"The level being played\"");
-	prop("Drawn Room", "Game State", 1, "u8", "Game", "\"writable\": false, \"description\": \"The room on the screen\"");
+	prop("Level", "Game State", 0, "u8", "Game", "\"writable\": false, \"description\": \"property.level\"");
+	prop("Drawn Room", "Game State", 1, "u8", "Game", "\"writable\": false, \"description\": \"property.drawn_room\"");
 	prop("Minutes Left", "Game State", 2, "u16", "Game", "");
-	prop("Ticks Left", "Game State", 4, "u16", "Game", "\"description\": \"Game ticks left of the current minute (719 a minute)\"");
+	prop("Ticks Left", "Game State", 4, "u16", "Game", "\"description\": \"property.ticks_left\"");
 	prop("Random Seed", "Game State", 6, "u32", "Game", "");
-	prop("Tick", "Game State", 10, "u32", "Game", "\"writable\": false, \"description\": \"Game ticks run\"");
-	prop("Frame Delay", "Game State", 14, "u16", "Game", "\"description\": \"1/60 s between this tick and the next (5 walking, 6 fighting)\"");
+	prop("Tick", "Game State", 10, "u32", "Game", "\"writable\": false, \"description\": \"property.tick\"");
+	prop("Frame Delay", "Game State", 14, "u16", "Game", "\"description\": \"property.frame_delay\"");
 	prop("Mob Count", "Game State", 16, "u16", "Game", "\"writable\": false");
 	prop("Trob Count", "Game State", 18, "u16", "Game", "\"writable\": false");
-	prop("IGT Ticks", "Game State", 22, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time: the ticks the game's clock has counted down since the game started (it runs from the first story scene after level 4), and with IGT From Level 1 the ticks of play before that (IGT Before Clock)\"");
-	prop("IGT Ms", "Game State", 26, "u32", "Game", "\"writable\": false, \"description\": \"The in-game time in milliseconds, 12 ticks a second: IGT mm:ss.mmm\"");
-	prop("IGT Before Clock", "Game State", 30, "u32", "Game", "\"writable\": false, \"description\": \"Ticks of play from the start of level 1 before the game's clock started, counted as the clock counts (while the prince lives); added to the in-game time with IGT From Level 1\"");
-	prop("Next Level", "Game State", 20, "u16", "Game", "\"description\": \"The level the game goes to: the level ends when this is not the level being played (15 after level 14: the game is won)\"");
+	prop("IGT Ticks", "Game State", 22, "u32", "Game", "\"writable\": false, \"description\": \"property.igt_ticks\"");
+	prop("IGT Ms", "Game State", 26, "u32", "Game", "\"writable\": false, \"description\": \"property.igt_ms\"");
+	prop("IGT Before Clock", "Game State", 30, "u32", "Game", "\"writable\": false, \"description\": \"property.igt_before_clock\"");
+	prop("Next Level", "Game State", 20, "u16", "Game", "\"description\": \"property.next_level\"");
 
 	/* the prince, and the room's five character slots */
 	char_fields("Kid", "Kid", "Kid", "");
@@ -245,7 +245,7 @@ static void table_init(void)
 	prop("Level.Rooms", "Level", 0x1840, "u8", "Level", "\"writable\": false");
 	prop("Level.Type", "Level", 0x1866, "u8", "Level", "\"writable\": false");
 	prop("Level.Start Room", "Level", 0x1860, "u8", "Level", "");
-	prop("Level.Start Tile", "Level", 0x1861, "u8", "Level", "\"description\": \"Column + 10 x row\"");
+	prop("Level.Start Tile", "Level", 0x1861, "u8", "Level", "\"description\": \"property.level_start_tile\"");
 	prop("Level.Start Direction", "Level", 0x1862, "s8", "Level", "\"values\": { \"-1\": \"Left\", \"0\": \"Right\" }");
 	for (int room = 1; room <= 28; room++)
 	{
@@ -253,11 +253,11 @@ static void table_init(void)
 		snprintf(group, sizeof group, "Room %d", room);
 		const long rec = 0x1867 + (long)(room - 1) * 0x74;
 		snprintf(name, sizeof name, "Room %d.Tiles", room);
-		prop(name, "Level", (long)(room - 1) * 30, "u8", group, "\"count\": 30, \"description\": \"Row by row, 10 to a row\"");
+		prop(name, "Level", (long)(room - 1) * 30, "u8", group, "\"count\": 30, \"description\": \"property.level_2\"");
 		snprintf(name, sizeof name, "Room %d.Attributes", room);
 		prop(name, "Level", 0x348 + (long)room * 30 * 4, "u32", group, "\"count\": 30");
 		snprintf(name, sizeof name, "Room %d.Characters", room);
-		prop(name, "Level", rec, "u8", group, "\"description\": \"How many characters the room starts with\"");
+		prop(name, "Level", rec, "u8", group, "\"description\": \"property.level_3\"");
 		static const struct { const char *label; long off; const char *type; } k_init[] = {
 			{ "Tile Position", 0, "s8" }, { "X", 1, "s16" }, { "Direction", 3, "s8" }, { "Sequence", 5, "u16" },
 			{ "HP", 12, "u8" }, { "Type", 15, "u8" }, { "Max HP", 16, "u8" },
@@ -283,7 +283,7 @@ static void table_init(void)
 	/* the hall of fame the game wrote */
 	prop("Hall of Fame.Count", "Hall of Fame", 0, "u16", "Hall of Fame", "\"writable\": false");
 	prop("Hall of Fame.Name", "Hall of Fame", 2, "string", "Hall of Fame", "\"length\": 27, \"encoding\": \"ascii\", \"count\": 6, \"stride\": 29, \"writable\": false");
-	prop("Hall of Fame.Minutes", "Hall of Fame", 29, "u16", "Hall of Fame", "\"count\": 6, \"stride\": 29, \"writable\": false, \"description\": \"The minutes that were left\"");
+	prop("Hall of Fame.Minutes", "Hall of Fame", 29, "u16", "Hall of Fame", "\"count\": 6, \"stride\": 29, \"writable\": false, \"description\": \"property.hall_of_fame_minutes\"");
 	add("\n] }\n");
 }
 

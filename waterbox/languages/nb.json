@@ -80,7 +80,7 @@
 		"setting.base_speed": "Gangfart",
 		"setting.base_speed.about": "Tiden mellom to tikk spill når man ikke kjemper, i 1/60 sekund. Mindre er raskere. Originalen har 5.",
 		"setting.cheats": "Slå på juks",
-		"setting.cheats.about": "Starter programmet med juke-ordet på kommandolinjen (yippeeyahoo, eller makinit for første utgivelse), slik originalen tillot. Jukeknappene finnes bare når dette er på. De dekker DOS-spillets juks og SDLPoP2s egne. Neste nivå (Alt+N) kan da nå et hvilket som helst nivå.",
+		"setting.cheats.about": "Starter programmet med juke-ordet på kommandolinjen (yippeeyahoo, eller makinit for første utgivelse), slik originalen tillot. Jukeknappene finnes bare når dette er på. De dekker DOS-spillets juks og de som SDLPoP2 har selv. Neste nivå (Alt+N) kan da nå et hvilket som helst nivå.",
 		"setting.enable_intro": "Introduksjon",
 		"setting.enable_intro.about": "Viser introduksjonen, som er historiescenene 7, 4 og 8 i tittelsekvensen. Uten den går tittelen videre til rulleteksten og demoene, der en tast starter spillet.",
 		"setting.enable_story_scenes": "Historiescener",
@@ -110,6 +110,6 @@
 		"setting.ticks_per_minute": "Klokketikk per minutt",
 		"setting.ticks_per_minute.about": "Hvor mange tikk på spillets klokke som gir ett minutt igjen av tiden. Originalen har 719. Ett tikk er 1/12 sekund, så ett minutt på klokken varer 59,92 sekunder.",
 		"setting.version": "Versjon",
-		"setting.version.about": "Hvilken DOS-utgivelse av spillet som spilles. Prosjektet leverer filene til den utgivelsen (se SDLPoP2s docs/VERSIONS.md). «1.1» er utgivelsen på Prince of Persia Collection-CD-en, som SDLPoP2 er bygget om fra. De andre er «1.0» og første utgivelse («ir»). Utgivelsene skiller seg i bevegelse nær vegger og porter, vaktene, spøkelset, nivå 2, 5, 8 og 14, tidtakerne og tilfeldige tall, og noen få historiescener. 1.0 og 1.1 har de samme datafilene og skiller seg bare i PRINCE.EXE. Første utgivelse har egne filer (tolv av dem er forskjellige), og juke-ordet er makinit."
+		"setting.version.about": "Hvilken DOS-utgivelse av spillet som spilles. Prosjektet leverer filene til den utgivelsen (se docs/VERSIONS.md i SDLPoP2). «1.1» er utgivelsen på Prince of Persia Collection-CD-en, som SDLPoP2 er bygget om fra. De andre er «1.0» og første utgivelse («ir»). Utgivelsene skiller seg i bevegelse nær vegger og porter, vaktene, spøkelset, nivå 2, 5, 8 og 14, tidtakerne og tilfeldige tall, og noen få historiescener. 1.0 og 1.1 har de samme datafilene og skiller seg bare i PRINCE.EXE. Første utgivelse har egne filer (tolv av dem er forskjellige), og juke-ordet er makinit."
 	}
 }

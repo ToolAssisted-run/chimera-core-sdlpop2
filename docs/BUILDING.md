@@ -207,10 +207,9 @@ miniBox, runs the guest inside it on either.
 
 Without building: this repository's CI publishes the package on its Releases
 page (https://github.com/ToolAssisted-run/chimera-core-sdlpop2/releases). A
-rolling `dev` release follows every green push to `main`. A dated
-`nightly-YYYY-MM-DD` release comes from the scheduled run (04:00 UTC), only
-when `main` moved since the last one. A published package is named
-`sdlpop2-<version>.chimeraCore`.
+dated `nightly-YYYY-MM-DD` release comes from the scheduled run (04:00 UTC),
+only when `main` moved since the last one. A published package is named
+`sdlpop2-<version>-x86_64.chimeraCore`.
 
 In Chimera a new project picks the core in File > New Project... (Kind: Game)
 and the release in the wizard's System box.

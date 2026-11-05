@@ -215,6 +215,7 @@ def main():
         "machines": [{"id": "PrinceOfPersia2", "label": label, "when": [v]} for v, _, label in RELEASES],
         "author": "Sergio Martin and the SDLPoP2 contributors, from Jordan Mechner's Prince of Persia 2; chimera port by Sergio Martin",
         "url": "https://github.com/ToolAssisted-run/chimera-core-sdlpop2",
+        "runsOn": ["windows-x86_64", "linux-x86_64", "macos-x86_64"],
         "deterministic": True,
         "memoryLayoutMiB": [64, 8, 8, 8, 64],
         "_memoryLayoutMiB_note": "sbrk, sealed, invisible, plain, mmap. The game loads its sound files whole; the program shell's and the story scenes' stacks are mmap'd (MAP_STACK).",
